@@ -1,4 +1,4 @@
-### File: app.py
+### File: main.py
 from tasks.task_manager import add_task, find_related_tasks
 
 # Example usage

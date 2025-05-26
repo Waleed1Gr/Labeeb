@@ -1,0 +1,9 @@
+هذا الملف فيه بعض ملاحظات كوبايلت، حبيت اكتبها هنا عشان ممكن تفيدنا بعدين.
+
+
+Best practices for using cleanup:
+
+Call it before program exit
+Use it in a context manager or destructor
+Implement it in try/finally blocks for critical sections
+This ensures your knowledge base changes are saved and resources are properly released.

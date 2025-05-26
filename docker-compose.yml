@@ -1,0 +1,15 @@
+version: '3'
+services:
+  labeeb:
+    build: .
+    privileged: true  # Needed for GPIO access
+    devices:
+      - "/dev/gpiomem:/dev/gpiomem"  # GPIO access
+      - "/dev/i2c-1:/dev/i2c-1"      # I2C if needed
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+      - ./chroma_store:/app/chroma_store
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TZ=Asia/Riyadh
+    restart: unless-stopped

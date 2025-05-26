@@ -7,3 +7,127 @@ Call it before program exit
 Use it in a context manager or destructor
 Implement it in try/finally blocks for critical sections
 This ensures your knowledge base changes are saved and resources are properly released.
+
+---------------------------------------------------------------------------------------------------------------
+هذي تحسينات كوبايلت بعد ما خلصت الكومت الي قبل هذا:
+---------------------------------------------------------------------------------------------------------------
+# RAG System and Text Processing Implementation Guide
+
+## 1. Text Processing Pipeline
+Here's the recommended flow for handling text in your robot:
+
+```mermaid
+graph LR
+    A[STT Input] --> B[Text Preprocessing]
+    B --> C[RAG Context]
+    C --> D[LLM Processing]
+    D --> E[Text Postprocessing]
+    E --> F[TTS Output]
+```
+
+## 2. Enhanced RAG Implementation
+````python
+from arabic_reshaper import reshape
+from bidi.algorithm import get_display
+import re
+
+class TextProcessor:
+    @staticmethod
+    def preprocess_arabic(text):
+        """Clean and normalize Arabic text"""
+        # Remove diacritics
+        text = re.sub(r'[\u064B-\u065F\u0670]', '', text)
+        # Normalize alefs and hamzas
+        text = re.sub(r'[إأآا]', 'ا', text)
+        return text
+
+    @staticmethod
+    def format_for_display(text):
+        """Format Arabic text for proper display"""
+        reshaped_text = reshape(text)
+        return get_display(reshaped_text)
+````
+
+## 3. Improved RAG System
+````python
+from .text_processor import TextProcessor
+
+class RAGSystem:
+    def __init__(self, knowledge_base_dir, persist_directory="./chroma_store"):
+        # ...existing code...
+        self.text_processor = TextProcessor()
+        
+    def query(self, question, k=3):
+        """Enhanced query with text processing"""
+        # Preprocess the question
+        processed_question = self.text_processor.preprocess_arabic(question)
+        
+        # Get results
+        results = self.collection.query(
+            query_texts=[processed_question],
+            n_results=k
+        )
+        
+        return results["documents"][0] if results["documents"] else []
+````
+
+## 4. Interface with STT/TTS
+````python
+from .LLM import LLM
+from .RAG.text_processor import TextProcessor
+
+class ConversationManager:
+    def __init__(self, api_key):
+        self.llm = LLM(api_key)
+        self.text_processor = TextProcessor()
+        
+    def process_input(self, stt_text):
+        """Process input from STT"""
+        processed_text = self.text_processor.preprocess_arabic(stt_text)
+        response = self.llm.generate_response(processed_text)
+        return self.text_processor.format_for_display(response)
+````
+
+## Professional Advice
+
+### 1. Arabic Text Handling
+- Use proper Arabic text preprocessing
+- Handle right-to-left text correctly
+- Consider dialectal variations in your knowledge base
+
+### 2. Knowledge Base Management
+- Start with a small, focused knowledge base
+- Regularly update and clean your data
+- Use version control for your knowledge base
+
+### 3. Performance Optimization
+- Implement caching for frequent queries
+- Monitor memory usage on the Raspberry Pi
+- Log system performance metrics
+
+### 4. Testing
+````python
+import pytest
+from agents.RAG.text_processor import TextProcessor
+
+def test_arabic_preprocessing():
+    processor = TextProcessor()
+    test_text = "إِنَّ هَذَا النَّصَّ يَحْتَوِي عَلَى تَشْكِيل"
+    processed = processor.preprocess_arabic(test_text)
+    assert "ان هذا النص يحتوي على تشكيل" in processed
+````
+
+### 5. Documentation
+Maintain clear documentation for:
+- Knowledge base structure
+- Text processing pipeline
+- API interfaces for STT/TTS teams
+
+### 6. Resources to Learn More
+1. Hugging Face's RAG tutorials
+2. LangChain documentation
+3. Arabic NLP resources on GitHub
+4. ChromaDB documentation
+
+Would you like me to elaborate on any of these aspects?
+

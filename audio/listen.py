@@ -4,48 +4,49 @@ import whisper
 import sounddevice as sd
 from scipy.io.wavfile import write
 import time
+from utils.config import wake_word
+from models.models import whisper_model
+import difflib
+from audio.speak import speak
 
-fs = 44100
-wake_word = "لبيب"
-chunk_seconds = 2  # مدة كل تسجيل مؤقت (قصير) بالثواني
 
-def listen_for_wake_word():
-    model = whisper.load_model("large")
-    print("🎤 جاري الاستماع... قل 'لبيب' لبدء التفاعل.")
+# ============== WAKE WORD & RECORD ==============
+def wait_for_wake_word():
+    fs = 16000
+    duration = 5  # زودنا المدة شوي عشان يقل الخطأ
+    print(f"🔊 بانتظار كلمة التنبيه: '{wake_word}'...")
 
     while True:
-        # تسجيل مقطع قصير (chunk)
-        recording = sd.rec(int(chunk_seconds * fs), samplerate=fs, channels=1)
+        recording = sd.rec(int(duration * fs), samplerate=fs, channels=1)
         sd.wait()
-        write("chunk.wav", fs, recording)
+        write("wake_check.wav", fs, recording)
 
-        # تحويل إلى نص
-        result = model.transcribe("chunk.wav", language="ar")
-        text = result["text"]
-        print("🔎 تم سماع:", text)
+        result = whisper_model.transcribe("wake_check.wav", language="ar")
+        text = result["text"].strip().lower()
+        print("👂 سمع:", text)
 
-        if wake_word in text:
-            print("✅ تم سماع كلمة التنبيه!")
-            return  # يخرج من الدالة ويكمل البرنامج
-        
-def record_command():
-    print("🟢 مرحباً! ماذا تريد أن أفعل؟ تحدث الآن...")
-    seconds = 4  # مدة تسجيل الجملة بعد كلمة لبيب (غيّر الرقم حسب رغبتك)
+        # ✅ fuzzy matching بدل التطابق الحرفي
+        matches = difflib.get_close_matches(wake_word, [text], n=1, cutoff=0.7)
+        if matches:
+            print("🚨 تم التعرف على كلمة قريبة من 'لبيب'!")
+            speak("كيف اقدر اخدمك؟")
+            return
+
+
+def record_and_transcribe():
+    wait_for_wake_word()
+
+    # ✅ إضافة صوت تنبيه هنا
+
+    fs = 16000
+    seconds = 9
+    print("🎙️ تسجيل الآن...")
     recording = sd.rec(int(seconds * fs), samplerate=fs, channels=1)
     sd.wait()
-    write("command.wav", fs, recording)
-    print("⏹️ انتهى التسجيل.")
+    write("recorded.wav", fs, recording)
+    print("✅ تم التسجيل")
 
-    model = whisper.load_model("large")
-    result = model.transcribe("command.wav", language="ar")
-    print("📝 النص المكتوب:", result["text"])
-    return result["text"]
-  
-    
-def main():
-    print("Allam LLM audio interface - ready for your instructions.")
-
-if __name__ == "__main__":
-    main()
-    listen_for_wake_word()
-    command_text = record_command()
+    result = whisper_model.transcribe("recorded.wav", language="ar")
+    text = result["text"].strip()
+    print("📄 النص:", text)
+    return text

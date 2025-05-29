@@ -1,42 +1,63 @@
-### File: main.py
-from tasks.task_manager import add_task, find_related_tasks
+from tasks.task_manager import (
+    load_tasks,
+    add_task,
+    delete_task,
+    search_tasks,
+    chat_response,
+    classify_input,
+)
+from utils.config import client
+from audio import record_and_transcribe, speak
+from vision.camera import phone_person_detector
+import threading
+import time
 
-# Example usage
+
+# ============== MAIN ==============
+def main():
+    print("🔰 جاري تحميل المهام...")
+    load_tasks()
+
+    # شغل الكاميرا في ثريد منفصل
+    cam_thread = threading.Thread(target=phone_person_detector, daemon=True)
+    cam_thread.start()
+
+    time.sleep(2)  # أعطي الكاميرا وقت تشتغل
+
+    while True:
+        user_input = record_and_transcribe()
+        if not user_input:
+            speak("ما سمعتك، حاول مرة ثانية.")
+            continue
+
+        intent = classify_input(user_input)
+        # print(f"🎯 التصنيف: {intent}")
+
+        if intent == "تسجيل":
+            add_task(user_input)
+        elif intent == "تذكير":
+            related = search_tasks(user_input)
+            response = chat_response(user_input, related)
+            print("🤖", response)
+            speak(response)
+        elif intent == "حذف":
+            delete_task(user_input)
+        else:
+            # ✅ استخدم ChatGPT للرد على استفسارات عامة بصيغة لطيفة
+            prompt = f"""أنت مساعد شخصي باللهجة السعودية، رد على السؤال التالي حتى لو ما كان تسجيل أو تذكير أو حذف.
+            رد مختصر، واضح، خفيف دم:
+
+            السؤال: {user_input}
+        """
+            res = client.chat.completions.create(
+                model="gpt-4-1106-preview",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+            )
+            reply = res.choices[0].message.content.strip()
+            print("🤖", reply)
+            speak(reply)
+
+
 if __name__ == "__main__":
-
-    # this is the senario of labeeb:
-    # --------------------------------------------------------------------------------------------------------------------------
-
-    # 1- camera runs to get the image of the user, if user is human and 5 seconds passed, then it will greet the user:
-
-    from vision.camera import is_attended
-    from audio.speak import speak
-
-    if is_attended(duration=5):
-        speak("أهلا، انا لبيب، كيف يمكنني مساعدتك اليوم؟")
-    # --------------------------------------------------------------------------------------------------------------------------
-
-    # 2- labeeb will start recording the audio of the user for 6 seconds.
-
-    from audio.listen import record_audio
-
-    audio_file = record_audio(duration=6)
-
-    # --------------------------------------------------------------------------------------------------------------------------
-
-    # 3- labeeb will get the audio and turn it into text using whisper. then send it to the LLM to get the response.
-
-    from audio.listen import transcribe_audio
-    from agents.LLM import get_response
-
-    text = transcribe_audio(audio_file)
-    # --------------------------------------------------------------------------------------------------------------------------
-
-    # 4- labeeb will get the response from the LLM and send it to TTS to speak it out loud.
-
-    response = get_response(text)
-    speak(response)
-
-# --------------------------------------------------------------------------------------------------------------------------
-
-# TODO: try to find a way to send the prompt to the RAG system if it was a task related prompt, and then get the response from the RAG system.
+    main()

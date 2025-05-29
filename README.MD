@@ -1,0 +1,1 @@
+# always make sure to install the correct Dependencies from requirements.txt. any problems that face you installing them might be from the install manager that you have. for reference we are using uv as an install manager and python version 3.10.11.

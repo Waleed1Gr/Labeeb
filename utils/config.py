@@ -1,6 +1,6 @@
 from openai import OpenAI
 from pathlib import Path
-from SECRET_KEY import API_KEY
+from utils.SECRET_KEY import API_KEY
 
 # ============== CONFIGURATION ==============
 client = OpenAI(api_key=API_KEY)

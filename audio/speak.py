@@ -44,3 +44,21 @@ def speak(text):
         os.system(f'start "" "{path}"')
     else:
         os.system(f"afplay {path}")
+
+
+def speak_warning(text):
+    filename = f"phone_warning_{int(time.time())}.mp3"
+    path = Path(filename)
+
+    with client.audio.speech.with_streaming_response.create(
+        model="gpt-4o-mini-tts",
+        voice="ash",
+        input=text,
+        instructions="تكلم بلهجة سعودية نجدية واضحة، لا تغلط بالكلمات وخلك ذكي",
+    ) as response:
+        response.stream_to_file(path)
+
+    if os.name == "nt":
+        os.system(f'start "" "{path}"')
+    else:
+        os.system(f"afplay {path}")

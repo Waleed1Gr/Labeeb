@@ -1,3 +1,6 @@
+import os
+
+os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
 from tasks.task_manager import (
     load_tasks,
     add_task,
@@ -7,7 +10,7 @@ from tasks.task_manager import (
     classify_input,
 )
 from utils.config import client
-from audio import record_and_transcribe, speak
+from audio.listen import record_and_transcribe, speak
 from vision.camera import phone_person_detector
 import threading
 import time

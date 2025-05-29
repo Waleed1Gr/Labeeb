@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from utils.config import DATA_TASKS_FILE
 from audio.speak import speak
-from utils.config import sentence_model
+from models.models import sentence_model
 import re
 from utils.config import client
 

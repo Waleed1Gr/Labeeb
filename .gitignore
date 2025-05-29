@@ -3,3 +3,5 @@ uv/
 recorded.wav
 *.wav
 utils/SECRET_KEY.py
+yolov5-master/
+*.pyc

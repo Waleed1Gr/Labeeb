@@ -1,9 +1,6 @@
 # listen.py
-import torch
-import whisper
 import sounddevice as sd
 from scipy.io.wavfile import write
-import time
 from utils.config import wake_word
 from models.models import whisper_model
 import difflib

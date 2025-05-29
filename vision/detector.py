@@ -1,4 +1,4 @@
-import cv2
+import av
 import torch
 import time
 
@@ -7,7 +7,7 @@ model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
 model.conf = 0.5
 print("YOLOv5 loaded successfully!")
 
-cap = cv2.VideoCapture(0)
+cap = av.VideoCapture(0)
 if not cap.isOpened():
     print("No camera found!")
     exit()
@@ -161,20 +161,20 @@ while True:
                     last_greeting_time = current_time
             
             color = (0, 255, 255) if has_phone else (0, 255, 0)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            av.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             
             if has_phone and phone_box:
                 px1, py1, px2, py2 = phone_box
-                cv2.rectangle(frame, (px1, py1), (px2, py2), (0, 0, 255), 2)
-                cv2.putText(frame, f'Phone: {phone_conf:.1%}', (px1, py1-5), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                av.rectangle(frame, (px1, py1), (px2, py2), (0, 0, 255), 2)
+                av.putText(frame, f'Phone: {phone_conf:.1%}', (px1, py1-5), 
+                           av.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
             
             label = f'Person #{person_id}: {conf:.1%}'
             if has_phone:
                 label += ' [PHONE]'
             
-            cv2.putText(frame, label, (x1, y1-10), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            av.putText(frame, label, (x1, y1-10), 
+                       av.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             
             current_detections.append(person_id)
     
@@ -182,18 +182,18 @@ while True:
     current_count = len(current_detections)
     
     info_text = f'Current: {current_count} | Total Unique: {unique_count}'
-    cv2.putText(frame, info_text, (10, 30), 
-               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-    cv2.putText(frame, info_text, (10, 30), 
-               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+    av.putText(frame, info_text, (10, 30), 
+               av.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    av.putText(frame, info_text, (10, 30), 
+               av.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
 
-    cv2.imshow('Human + Phone Detection', frame)
+    av.imshow('Human + Phone Detection', frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if av.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
-cv2.destroyAllWindows()
+av.destroyAllWindows()
 
 # Final phone time calculation
 total_session_time = time.time() - session_start_time

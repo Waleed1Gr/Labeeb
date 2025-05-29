@@ -5,3 +5,4 @@ recorded.wav
 utils/SECRET_KEY.py
 yolov5-master/
 *.pyc
+__pycache__/

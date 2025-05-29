@@ -1,7 +1,9 @@
 import cv2
-import torch
 import time
+import threading
+from queue import Queue
 from audio.speak import speak_warning
+from ultralytics import YOLO
 
 
 # ============== CAMERA PERSON & PHONE DETECTOR ==============
@@ -19,13 +21,19 @@ def intersection_over_union(boxA, boxB):
 
 def phone_person_detector():
     print("📸 بدأ كشف الكاميرا...")
-    model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)
-    model.conf = 0.5
+    # Use smaller model but keep same detection capabilities
+    model = YOLO('models/yolov5n.pt')
+    model.conf = 0.4
+
     cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
     if not cap.isOpened():
         print("❌ الكاميرا غير متوفرة")
         return
 
+    # Preserve all tracking variables
     unique_people = {}
     person_id_counter = 0
     phone_start_times = {}
@@ -35,36 +43,68 @@ def phone_person_detector():
     def current_time():
         return time.time()
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+    # Frame processing queue
+    frame_queue = Queue(maxsize=2)
+    running = threading.Event()
+    running.set()
 
-        results = model(frame)
-        labels, cords = results.xyxyn[0][:, -1], results.xyxyn[0][:, :-1]
+    def capture_frames():
+        while running.is_set():
+            ret, frame = cap.read()
+            if ret:
+                if frame_queue.full():
+                    frame_queue.get()
+                frame_queue.put(frame)
+            time.sleep(0.01)
+
+    capture_thread = threading.Thread(target=capture_frames)
+    capture_thread.start()
+
+    skip_frames = 0
+
+    while True:
+        if frame_queue.empty():
+            continue
+
+        frame = frame_queue.get()
+        skip_frames += 1
+
+        if skip_frames % 2 != 0:
+            continue
+
+        # Scale down for processing but keep original for display
+        frame_small = cv2.resize(frame, (416, 416))
+        results = model(frame_small)
+
+        # Scale detections back to original frame size
+        scale_x = frame.shape[1] / 416
+        scale_y = frame.shape[0] / 416
 
         detected_people = []
         detected_phones = []
 
-        for i, label in enumerate(labels):
-            if int(label) == 0:  # شخص
-                x1, y1, x2, y2, _ = cords[i]
-                x1, y1, x2, y2 = (
-                    int(x1 * frame.shape[1]),
-                    int(y1 * frame.shape[0]),
-                    int(x2 * frame.shape[1]),
-                    int(y2 * frame.shape[0]),
-                )
-                detected_people.append((x1, y1, x2, y2))
-            elif int(label) == 67:  # جوال
-                x1, y1, x2, y2, _ = cords[i]
-                x1, y1, x2, y2 = (
-                    int(x1 * frame.shape[1]),
-                    int(y1 * frame.shape[0]),
-                    int(x2 * frame.shape[1]),
-                    int(y2 * frame.shape[0]),
-                )
-                detected_phones.append((x1, y1, x2, y2))
+        for r in results:
+            boxes = r.boxes
+            for box in boxes:
+                cls = int(box.cls[0])
+                if cls == 0:  # Person
+                    x1, y1, x2, y2 = box.xyxy[0]
+                    x1, y1, x2, y2 = (
+                        int(x1.item() * scale_x),
+                        int(y1.item() * scale_y),
+                        int(x2.item() * scale_x),
+                        int(y2.item() * scale_y),
+                    )
+                    detected_people.append((x1, y1, x2, y2))
+                elif cls == 67:  # Phone
+                    x1, y1, x2, y2 = box.xyxy[0]
+                    x1, y1, x2, y2 = (
+                        int(x1.item() * scale_x),
+                        int(y1.item() * scale_y),
+                        int(x2.item() * scale_x),
+                        int(y2.item() * scale_y),
+                    )
+                    detected_phones.append((x1, y1, x2, y2))
 
         for px1, py1, px2, py2 in detected_people:
             person_center = ((px1 + px2) // 2, (py1 + py2) // 2)
@@ -114,6 +154,7 @@ def phone_person_detector():
                             phone_warning_given.pop(found_person_id, None)
                             phone_put_down_time.pop(found_person_id, None)
 
+        # Draw with cv2 instead of av
         for px1, py1, px2, py2 in detected_people:
             cv2.rectangle(frame, (px1, py1), (px2, py2), (0, 255, 0), 2)
         for phx1, phy1, phx2, phy2 in detected_phones:
@@ -123,5 +164,7 @@ def phone_person_detector():
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
+    running.clear()
+    capture_thread.join()
     cap.release()
     cv2.destroyAllWindows()

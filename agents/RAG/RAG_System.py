@@ -2,7 +2,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import DirectoryLoader, TextLoader
 import chromadb
 from chromadb.config import Settings
-import os
 
 class RAGSystem:
     def __init__(self, knowledge_base_dir, persist_directory="./chroma_store"):

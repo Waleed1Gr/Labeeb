@@ -4,9 +4,7 @@
 
 import openai
 from .RAG.RAG_System import RAGSystem
-import os
 from functools import lru_cache
-import hashlib
 
 # create the LLM class
 

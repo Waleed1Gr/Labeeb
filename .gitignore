@@ -1,4 +1,7 @@
 .venv/
 uv/
 recorded.wav
+utils/SECRET_KEY.py
 *.wav
+*.pyc
+__pycache__/

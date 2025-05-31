@@ -2,6 +2,10 @@ from tasks.task_manager import load_tasks, add_task, search_tasks, delete_task, 
 from utils.config import session_active
 from audio.speak import speak
 from audio.listen import record_and_transcribe
+import time
+import threading
+from vision.camera import phone_person_detector
+from utils.config import client
 
 def main():
     print("🔰 جاري تحميل المهام...")

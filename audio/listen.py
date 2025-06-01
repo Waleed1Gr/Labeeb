@@ -1,146 +1,108 @@
 import time
 import os
-import queue
 import numpy as np
 import sounddevice as sd
 from scipy.io.wavfile import write
 import webrtcvad
-from utils.config import SESSION_TIMEOUT, last_interaction, session_active
+from pydub import AudioSegment
+import tempfile
+from utils.config import SESSION_TIMEOUT, last_interaction, session_active, TEMP_DIR
 from utils.utils import current_time
-from audio.speak import speak
+from audio.speak import speak, stop_current_speech, is_currently_speaking
 from models.model import whisper_model
 
-# ============== WAKE WORD & RECORD ==============
+# Initialize VAD
+vad = webrtcvad.Vad(1)  # Sensitivity level 2 (0-3)
+
+# Adjust silence detection parameters
+SILENCE_THRESHOLD = 15  # Reduced from 20
+MIN_AUDIO_LEVEL = 0.003  # Minimum audio level to consider as speech
+
+def is_speech(frame, sample_rate=16000):
+    """Check if audio frame contains speech"""
+    try:
+        return vad.is_speech(frame.tobytes(), sample_rate)
+    except:
+        return False
+
 def wait_for_wake_word():
-    fs = 16000  # Sample rate
-    duration = 3  # Increased duration for better capture
+    """Listen for wake word with improved silence detection"""
     print("🔊 بانتظار كلمة التنبيه: 'لبيب'...")
     
-    while True:
-        try:
-            # Record audio
-            recording = sd.rec(int(duration * fs), samplerate=fs, channels=1)
-            sd.wait()
-            
-            amplitude = np.abs(recording).mean()
-            print("متوسط الصوت:", amplitude)
+    # Ensure temp directory exists
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    
+    sample_rate = 16000
+    frame_duration = 30  # ms
+    frame_samples = int(sample_rate * frame_duration / 1000)
+    silence_threshold = 20
+    silent_chunks = 0
+    chunks = []
 
-            write("wake_check.wav", fs, recording)
-
-            # Transcribe with more context and guidance
-            result = whisper_model.transcribe(
-                "wake_check.wav",
-                language="ar",
-                initial_prompt="لبيب هو اسم الروبوت. الكلمات المتوقعة: لبيب"
-            )
-            
-            text = result["text"].strip().lower()
-            if(amplitude < 0.002):
-                print("🔇 لا يوجد صوت كافي، إعادة المحاولة...")
-            else:
-                print("👂 سمع:", text)
-
-            # More flexible matching
-            if any(word in text for word in ["لبيب", "لبي", "لب", "labeeb"]):
-                print("✨ تم التعرف على كلمة التنبيه!")
-                speak("نعم، كيف اقدر اخدمك؟")
-                return True
-            
-            time.sleep(0.1)  # Small delay to prevent CPU overload
-            
-        except Exception as e:
-            print(f"❌ خطأ في التعرف على الصوت: {e}")
-            time.sleep(1)
-            continue
-
-
-
-# record_until_silence ############
-def record_until_silence_fixed(filename, sample_rate=16000, frame_duration_ms=30, silence_duration=2, max_duration=40):
-    import collections
-
-    vad = webrtcvad.Vad(2)
-    q = queue.Queue()
-
-    def callback(indata, frames, time_info, status):
-        if status:
-            print("Status:", status)
-        q.put(indata.copy())
-
-    stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16', callback=callback)
-    stream.start()
-
-    frames = []
-    ring_buffer = collections.deque()
-    silence_start = None
-    start_time = time.time()
-
-    frame_size = int(sample_rate * frame_duration_ms / 1000)  # عدد العينات لكل إطار
-    bytes_per_frame = frame_size * 2  # 16-bit = 2 bytes per sample
-
-    buffer = b""
-    speech_detected = False  # اكتشاف إذا تم الكشف عن الكلام
+    def callback(indata, frames, time, status):
+        nonlocal silent_chunks
+        audio = np.frombuffer(indata, dtype=np.int16)
+        if is_speech(audio):
+            silent_chunks = 0
+            chunks.append(audio.copy())
+        else:
+            silent_chunks += 1
+        if silent_chunks > silence_threshold:
+            raise sd.CallbackStop()
 
     try:
-        while True:
-            if time.time() - start_time > max_duration:
-                print("⏰ Max duration reached.")
-                break
-            try:
-                data = q.get(timeout=1)
-            except queue.Empty:
-                continue
+        with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16',
+                          callback=callback, blocksize=frame_samples):
+            # Reduced sleep time for better responsiveness
+            sd.sleep(2000)  # 2 seconds instead of 3
+    except sd.CallbackStop:
+        pass
 
-            buffer += data.tobytes()
+    if not chunks:  # No speech detected
+        print("🔇 لا يوجد صوت كافي، إعادة المحاولة...")
+        return False
 
-            while len(buffer) >= bytes_per_frame:
-                frame = buffer[:bytes_per_frame]
-                buffer = buffer[bytes_per_frame:]
+    # Use Path for proper file handling
+    temp_path = TEMP_DIR / f"wake_{int(time.time())}.wav"
+    
+    try:
+        AudioSegment(
+            np.concatenate(chunks).tobytes(), 
+            frame_rate=sample_rate, 
+            sample_width=2, 
+            channels=1
+        ).export(str(temp_path), format="wav")
 
-                is_speech = vad.is_speech(frame, sample_rate)
+        result = whisper_model.transcribe(
+            str(temp_path),
+            language="ar",
+            initial_prompt="لبيب هو اسم الروبوت. الكلمات المتوقعة: لبيب"
+        )
 
-                if is_speech:
-                    silence_start = None
-                    speech_detected = True  # <-- إذا تم اكتشاف كلام، فعل العلم
-                else:
-                    if silence_start is None:
-                        silence_start = time.time()
-                    elif time.time() - silence_start > silence_duration:
-                        print("🔇 Silence detected, stopping recording.")
-                        stream.stop()
-                        stream.close()
-                        audio_data = np.frombuffer(b''.join(ring_buffer), dtype=np.int16)
-                        if not speech_detected:
-                            print("⚠️ لم يتم رصد أي كلام أثناء التسجيل.")
-                            return False
-                        if audio_data.size == 0:
-                            print("⚠️ No audio recorded.")
-                            return False
-                        write(filename, sample_rate, audio_data)
-                        print(f"✅ Recording saved to {filename}")
-                        return True
+        text = result["text"].strip().lower()
+        print("👂 سمع:", text)
 
-                ring_buffer.append(frame)
+        if any(word in text for word in ["لبيب", "لبي", "لب", "labeeb"]):
+            print("✨ تم التعرف على كلمة التنبيه!")
+            speak("نعم، كيف اقدر اخدمك؟")
+            return True
+
+        return False
 
     except Exception as e:
-        print(f"Error during recording: {e}")
-        stream.stop()
-        stream.close()
+        print(f"❌ خطأ في التسجيل: {e}")
         return False
 
-    # Timeout or max duration reached
-    stream.stop()
-    stream.close()
-    audio_data = np.frombuffer(b''.join(ring_buffer), dtype=np.int16)
-    if audio_data.size == 0:
-        print("⚠️ No audio recorded.")
-        return False
-    write(filename, sample_rate, audio_data)
-    print(f"✅ Recording saved to {filename}")
-    return True
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 def record_and_transcribe(wait_for_wake=True):
+    """Record and transcribe speech with improved silence detection"""
     global session_active, last_interaction
+    
+    # Small delay before recording to prevent false triggers
+    time.sleep(0.2)
     
     if wait_for_wake and not session_active:
         if not wait_for_wake_word():
@@ -148,27 +110,57 @@ def record_and_transcribe(wait_for_wake=True):
         session_active = True
         last_interaction = current_time()
     
-    filename = f"record_{int(time.time())}.wav"
+    print("[Labeeb] Listening...")
+    sample_rate = 16000
+    frame_duration = 30
+    frame_samples = int(sample_rate * frame_duration / 1000)
+    silence_threshold = 20
+    silent_chunks = 0
+    chunks = []
+
+    def callback(indata, frames, time, status):
+        nonlocal silent_chunks
+        audio = np.frombuffer(indata, dtype=np.int16)
+        
+        # Check both VAD and amplitude
+        is_speech_detected = is_speech(audio) or np.abs(audio).mean() > MIN_AUDIO_LEVEL
+        
+        if is_speech_detected:
+            silent_chunks = 0
+            chunks.append(audio.copy())
+        else:
+            silent_chunks += 1
+        if silent_chunks > SILENCE_THRESHOLD:
+            raise sd.CallbackStop()
+
     try:
-        print('before record_until_silence')
-        success = record_until_silence_fixed(filename, sample_rate=16000, silence_duration=2, max_duration=10)
-        print(success)
-        print(type(success))
-        if not success:
-            print("❌ لم يتم تسجيل كلام، أعِد المحاولة.")
-            return ""
+        with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16',
+                          blocksize=frame_samples, callback=callback):
+            sd.sleep(10000)  # Max 10 seconds
+    except sd.CallbackStop:
+        pass
+
+    if not chunks:
+        print("❌ لم يتم تسجيل كلام، أعِد المحاولة.")
+        return ""
+
+    audio = np.concatenate(chunks)
+    temp_path = TEMP_DIR / f"record_{int(time.time())}.wav"
+    
+    try:
+        AudioSegment(
+            audio.tobytes(), 
+            frame_rate=sample_rate, 
+            sample_width=2, 
+            channels=1
+        ).export(str(temp_path), format="wav")
 
         result = whisper_model.transcribe(
-            filename,
+            str(temp_path),
             language="ar",
             initial_prompt="توقع كلام باللهجة السعودية"
         )
-        
-        try:
-            os.remove(filename)
-        except:
-            pass
-            
+
         text = result["text"].strip()
         print("📄 النص:", text)
 
@@ -176,16 +168,20 @@ def record_and_transcribe(wait_for_wake=True):
             print("⚠️ النص فارغ بعد التحويل، إعادة التسجيل.")
             return ""
 
-        if session_active:
-            last_interaction = current_time()
-            
+        # Update interaction time if valid input received
+        last_interaction = current_time()
+    
         if session_active and (current_time() - last_interaction > SESSION_TIMEOUT):
             session_active = False
             print("\n💤 انتهت الجلسة")
             speak("تم إنهاء الجلسة، ناديني إذا احتجتني!")
             
         return text
-        
+
     except Exception as e:
         print(f"❌ خطأ في التسجيل أو التحويل: {e}")
         return ""
+
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()

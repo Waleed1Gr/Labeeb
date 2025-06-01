@@ -149,32 +149,30 @@ def classify_input(user_input):
 
 def chat_response(user_input, related_tasks):
     try:
+        # Check for exit keywords first
+        exit_keywords = ["مع السلامة", "خلاص", "باي", "وقف", "انتهينا", "اشوفك"]
+        if any(keyword in user_input.lower() for keyword in exit_keywords):
+            return """مع السلامة يا طيب، الله يحفظك. إذا احتجت شي ثاني ناديني.
+<close_conversation>"""
+        
         if related_tasks:
             context = "\n".join([f"- {t['text']} (موعد: {t['time'].strftime('%Y-%m-%d %H:%M')})" for t in related_tasks])
         else:
             context = "ما عندك مهام مسجلة يا حلو."
 
-        prompt = f"""
-أنت مساعد شخصي باللهجة السعودية، هدفك هو الرد باختصار وبشكل طبيعي على المستخدم.
+        prompt = f"""أنت مساعد شخصي باللهجة السعودية.
+        إذا كان المستخدم يريد إنهاء المحادثة أضف في نهاية ردك السطر التالي:
+        <close_conversation>
 
-لو شعرت أن المستخدم يقصد إنهاء المحادثة (زي أنه يقول: خلاص، شكراً، مع السلامة، ما عاد أبي أتكلم)، رد بشكل مهذب برسالة وداع، وارجع لي السطر:
+        السياق: {context}
+        السؤال: {user_input}
 
-<close_conversation>
-
-وإذا ما كان ينهي، فقط رد طبيعي من دون هذا السطر.
-
-السياق:
-{context}
-
-المستخدم قال: {user_input}
-
-رد:
-"""
+        رد:"""
 
         res = client.chat.completions.create(
             model="gpt-4-1106-preview",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.6
+            temperature=0.7
         )
         return res.choices[0].message.content.strip()
     except Exception as e:

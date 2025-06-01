@@ -1,6 +1,7 @@
 from openai import OpenAI
 from pathlib import Path
 from utils.SECRET_KEY import API_KEY
+import tempfile
 
 # ============== CONFIGURATION ==============
 client = OpenAI(api_key=API_KEY)
@@ -12,3 +13,5 @@ wake_word = "لبيب"
 SESSION_TIMEOUT = 60  # seconds
 session_active = False
 last_interaction = 0
+TEMP_DIR = Path(tempfile.mkdtemp(prefix='labeeb_'))
+TEMP_DIR.mkdir(parents=True, exist_ok=True)

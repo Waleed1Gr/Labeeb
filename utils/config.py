@@ -15,3 +15,5 @@ wake_word = "لبيب"
 SESSION_TIMEOUT = 60  # seconds
 session_active = False
 last_interaction = 0
+TEMP_DIR = Path(tempfile.mkdtemp(prefix='labeeb_'))
+TEMP_DIR.mkdir(parents=True, exist_ok=True)

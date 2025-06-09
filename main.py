@@ -5,7 +5,7 @@ from audio.listen import record_and_transcribe, wait_for_wake_word
 import time
 import threading
 from vision.camera import phone_person_detector
-from utils.config import client
+from utils.config import client, session_active
 import shutil
 
 def main():
@@ -19,27 +19,22 @@ def main():
         
         while True:
             try:
-                user_input = record_and_transcribe()
+                if not session_active:
+                    # Only try to detect wake word when session is inactive
+                    if wait_for_wake_word():
+                        session_active = True
+                    continue
+                               
+                user_input = record_and_transcribe(wait_for_wake=False)  # Important: don't check wake word here
                 if not user_input:
                     continue
-                
-                # Check for exit phrases
-                exit_phrases = ["مع السلامة", "خلاص", "باي", "وقف"]
-                if any(phrase in user_input.lower() for phrase in exit_phrases):
-                    response = "مع السلامة يا طيب، إذا احتجت شي ثاني ناديني.\n<close_conversation>"
-                    print("🤖", response)
-                    speak(response)
-                    session_active = False
-                    print("\n👋 انتهت المحادثة")
-                    print("🔊 بانتظار كلمة التنبيه: 'لبيب'...")
-                    continue
-                
+
                 # Process normal input
                 intent = classify_input(user_input)
                 
                 if is_currently_speaking():
                     stop_current_speech()
-                    time.sleep(0.1)  # Give time for cleanup
+                    time.sleep(0.1)
                 
                 if intent == "تسجيل":
                     add_task(user_input)
@@ -48,13 +43,13 @@ def main():
                     response = chat_response(user_input, related)
                     print("🤖", response)
                     speak(response)
+                    while is_currently_speaking():
+                        time.sleep(0.1)
                     if "<close_conversation>" in response:
                         session_active = False
                         print("\n👋 انتهت المحادثة")
                         print("🔊 بانتظار كلمة التنبيه: 'لبيب'...")
                         continue
-                elif intent == "حذف":
-                    delete_task(user_input)
                 else:
                     try:
                         prompt = f"""أنت مساعد شخصي باللهجة السعودية، رد على السؤال التالي:
@@ -68,15 +63,19 @@ def main():
                         reply = res.choices[0].message.content.strip()
                         print("🤖", reply)
                         speak(reply)
+                        while is_currently_speaking():
+                            time.sleep(0.1)
                         if "<close_conversation>" in reply:
-                            print("\n👋 انتهت المحادثة")
                             session_active = False
+                            print("\n👋 انتهت المحادثة")
                             print("🔊 بانتظار كلمة التنبيه: 'لبيب'...")
                             continue
                     except Exception as e:
                         print(f"General chat error: {e}")
                         speak("حصل خطأ في الرد، حاول مرة ثانية")
-                    
+                        while is_currently_speaking():
+                            time.sleep(0.1)
+                
             except KeyboardInterrupt:
                 print("\n🛑 إيقاف البرنامج...")
                 break
@@ -87,7 +86,7 @@ def main():
     finally:
         # Cleanup
         try:
-            stop_current_speech()  # Stop any ongoing speech
+            stop_current_speech()
             if TEMP_DIR.exists():
                 shutil.rmtree(TEMP_DIR)
         except Exception as e:

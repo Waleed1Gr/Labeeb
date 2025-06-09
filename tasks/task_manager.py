@@ -74,16 +74,67 @@ def load_tasks():
     except Exception as e:
         print(f"Load tasks error: {e}")
 
+def classify_input(user_input):
+    try:
+        prompt = f"""أنت مساعد شخصي ذكي باللهجة السعودية.
+        المستخدم قال: "{user_input}"
+        
+        حلل قصد المستخدم واختر من التالي:
+        1. إذا يقصد تسجيل موعد أو مهمة جديدة، رد: تسجيل
+        2. إذا يستفسر عن المهام أو المواعيد المسجلة، رد: تذكير
+        3. إذا يريد حذف مهمة، رد: حذف
+        4. إذا يريد محادثة عادية، رد: محادثة
+
+        رد بخيار واحد من الخيارات المذكورة أعلاه.
+        """
+        res = client.chat.completions.create(
+            model="gpt-4-1106-preview",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+        return res.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Classify input error: {e}")
+        return "محادثة"
+
+def extract_task_summary(text):
+    """Extract a concise task summary from user input"""
+    try:
+        prompt = f"""المستخدم قال باللهجة السعودية: "{text}"
+
+        استخرج عنوان مختصر للمهمة من كلام المستخدم. العنوان يجب أن:
+        1. يكون مختصر (٣-٥ كلمات)
+        2. يلخص الهدف الرئيسي
+        3. يحافظ على المعنى الأساسي
+        4. يكون باللهجة السعودية
+
+        رد بالعنوان فقط بدون أي إضافات.
+        """
+        
+        res = client.chat.completions.create(
+            model="gpt-4-1106-preview",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+        return res.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Task summary error: {e}")
+        return text
+
 def add_task(text):
     try:
+        # Get task summary first
+        task_summary = extract_task_summary(text)
         dt = parse_date_arabic(text) or datetime.now()
-        emb = sentence_model.encode([text])[0]
-        tasks.append({"text": text, "time": dt})
+        
+        emb = sentence_model.encode([task_summary])[0]
+        tasks.append({"text": task_summary, "time": dt})
         embeddings.append(emb)
         index.add(np.array([emb]))
         save_tasks()
-        print(f"✅ سجلت: {text} @ {dt}")
-        speak("تم تسجيل المهمة يا بطل!")
+        
+        print(f"✅ سجلت: {task_summary} @ {dt}")
+        speak(f"تم تسجيل المهمة: {task_summary}")
     except Exception as e:
         print(f"Add task error: {e}")
         speak("حصل خطأ في تسجيل المهمة")
@@ -125,47 +176,22 @@ def search_tasks(query, k=5):
         print(f"Search tasks error: {e}")
         return []
 
-def classify_input(user_input):
-    try:
-        prompt = f"""المستخدم قال باللهجة السعودية: "{user_input}"
-
-هل هذا طلب:
-- تسجيل مهمة جديدة؟ (أجب: تسجيل)
-- تذكير/استفسار عن المهام؟ (أجب: تذكير)
-- حذف مهمة؟ (أجب: حذف)
-- أو شيء ثاني؟ (أجب: غير)
-
-رد بكلمة واحدة فقط: تسجيل أو تذكير أو حذف أو غير.
-"""
-        res = client.chat.completions.create(
-            model="gpt-4-1106-preview",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-        return res.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Classify input error: {e}")
-        return "غير"
-
 def chat_response(user_input, related_tasks):
     try:
-        # Check for exit keywords first
-        exit_keywords = ["مع السلامة", "خلاص", "باي", "وقف", "انتهينا", "اشوفك"]
-        if any(keyword in user_input.lower() for keyword in exit_keywords):
-            return """مع السلامة يا طيب، الله يحفظك. إذا احتجت شي ثاني ناديني.
-<close_conversation>"""
-        
         if related_tasks:
             context = "\n".join([f"- {t['text']} (موعد: {t['time'].strftime('%Y-%m-%d %H:%M')})" for t in related_tasks])
         else:
             context = "ما عندك مهام مسجلة يا حلو."
 
         prompt = f"""أنت مساعد شخصي باللهجة السعودية.
-        إذا كان المستخدم يريد إنهاء المحادثة أضف في نهاية ردك السطر التالي:
-        <close_conversation>
+        تحدث بأسلوب ودي ولطيف.
+        
+        إذا فهمت من سياق الكلام أن المستخدم يريد إنهاء المحادثة:
+        1. رد بعبارة وداع مناسبة
+        2. أضف في نهاية ردك السطر التالي: <close_conversation>
 
         السياق: {context}
-        السؤال: {user_input}
+        المستخدم: {user_input}
 
         رد:"""
 

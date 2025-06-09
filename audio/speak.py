@@ -15,7 +15,7 @@ speech_lock = threading.Lock()
 
 def play_audio(audio_data):
     """Play audio data in a separate thread"""
-    global current_play_obj, is_speaking
+    global current_play_obj, is_speaking, stop_speaking_flag
     try:
         with speech_lock:
             is_speaking = True
@@ -23,18 +23,20 @@ def play_audio(audio_data):
             play_obj = _play_with_simpleaudio(audio)
             current_play_obj = play_obj
             
-            while play_obj.is_playing() and not stop_speaking_flag:
-                time.sleep(0.1)
-            
-            if stop_speaking_flag:
-                play_obj.stop()
-                print("[Labeeb] Speech interrupted.")
+            # Monitor playback with shorter sleep intervals for better responsiveness
+            while current_play_obj and current_play_obj.is_playing():
+                if stop_speaking_flag:
+                    current_play_obj.stop()
+                    print("[Labeeb] Speech interrupted.")
+                    break
+                time.sleep(0.05)  # Shorter sleep time for faster response
             
     finally:
         with speech_lock:
             is_speaking = False
             current_play_obj = None
-
+            stop_speaking_flag = False
+            
 def speak(text):
     """Generate and play speech for given text"""
     global playback_thread, stop_speaking_flag

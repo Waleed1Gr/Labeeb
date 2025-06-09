@@ -2,6 +2,7 @@ from openai import OpenAI
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import tempfile
 
 # ============== CONFIGURATION ==============
 load_dotenv()  # Load environment variables from .env file

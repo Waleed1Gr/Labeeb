@@ -5,3 +5,4 @@ utils/SECRET_KEY.py
 *.wav
 *.pyc
 __pycache__/
+.env

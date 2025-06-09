@@ -1,8 +1,11 @@
 from openai import OpenAI
 from pathlib import Path
-from utils.SECRET_KEY import API_KEY
+from dotenv import load_dotenv
+import os
 
 # ============== CONFIGURATION ==============
+load_dotenv()  # Load environment variables from .env file
+API_KEY = os.getenv("OPENAI_API_KEY")  #just fixed this line to use the traditional way of getting the API key
 client = OpenAI(api_key=API_KEY)
 
 speech_file_path = Path("response.mp3")

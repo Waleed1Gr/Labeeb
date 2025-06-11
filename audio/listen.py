@@ -16,26 +16,24 @@ from models.model import whisper_model
 # Initialize VAD with moderate sensitivity
 vad = webrtcvad.Vad(2)
 
+
 def record_until_silence(
     filename: str,
     sample_rate: int = 16000,
     frame_duration_ms: int = 30,
     silence_duration: int = 2,
-    max_duration: int = 10
+    max_duration: int = 10,
 ) -> bool:
     """Records audio until silence is detected"""
     q = queue.Queue()
-    
+
     def callback(indata, frames, time_info, status):
         if status:
             print(f"Status: {status}")
         q.put(indata.copy())
 
     stream = sd.InputStream(
-        samplerate=sample_rate,
-        channels=1,
-        dtype='int16',
-        callback=callback
+        samplerate=sample_rate, channels=1, dtype="int16", callback=callback
     )
     stream.start()
 
@@ -43,7 +41,7 @@ def record_until_silence(
     silence_start = None
     start_time = time.time()
     buffer = b""
-    
+
     frame_size = int(sample_rate * frame_duration_ms / 1000)
     bytes_per_frame = frame_size * 2
     speech_detected = False
@@ -75,7 +73,9 @@ def record_until_silence(
                         print("🔇 Silence detected, stopping recording.")
                         stream.stop()
                         stream.close()
-                        audio_data = np.frombuffer(b''.join(ring_buffer), dtype=np.int16)
+                        audio_data = np.frombuffer(
+                            b"".join(ring_buffer), dtype=np.int16
+                        )
                         if not speech_detected:
                             print("⚠️ لم يتم رصد أي كلام أثناء التسجيل.")
                             return False
@@ -95,22 +95,21 @@ def record_until_silence(
         stream.stop()
         stream.close()
 
+
 def wait_for_wake_word():
     """Listen for wake word"""
     print("🔊 بانتظار كلمة التنبيه: 'لبيب'...")
-    
+
     temp_path = TEMP_DIR / f"wake_{int(time.time())}.wav"
-    
+
     try:
         if record_until_silence(
-            filename=str(temp_path),
-            silence_duration=1,
-            max_duration=3
+            filename=str(temp_path), silence_duration=1, max_duration=3
         ):
             result = whisper_model.transcribe(
                 str(temp_path),
                 language="ar",
-                initial_prompt="لبيب هو اسم الروبوت. الكلمات المتوقعة: لبيب"
+                initial_prompt="لبيب هو اسم الروبوت. الكلمات المتوقعة: لبيب",
             )
 
             text = result["text"].strip().lower()
@@ -127,10 +126,11 @@ def wait_for_wake_word():
         if temp_path.exists():
             temp_path.unlink()
 
+
 def record_and_transcribe(wait_for_wake=True):
     """Record and transcribe speech"""
     global session_active, last_interaction
-    
+
     # Don't record if session is not active
     if not session_active:
         return ""
@@ -141,7 +141,7 @@ def record_and_transcribe(wait_for_wake=True):
 
     print("[Labeeb] Listening...")
     temp_path = TEMP_DIR / f"record_{int(time.time())}.wav"
-    
+
     try:
         print("before record_until_silence")
         if not record_until_silence(str(temp_path)):
@@ -149,9 +149,7 @@ def record_and_transcribe(wait_for_wake=True):
             return ""
 
         result = whisper_model.transcribe(
-            str(temp_path),
-            language="ar",
-            initial_prompt="توقع كلام باللهجة السعودية"
+            str(temp_path), language="ar", initial_prompt="توقع كلام باللهجة السعودية"
         )
 
         text = result["text"].strip()
@@ -171,3 +169,26 @@ def record_and_transcribe(wait_for_wake=True):
     finally:
         if temp_path.exists():
             temp_path.unlink()
+
+
+def transcribe_audio_bytes(audio_bytes, sample_rate=16000):
+    """Transcribe audio bytes (from Pi) using Whisper."""
+    # Save to temp file (Whisper expects a file)
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        f.write(audio_bytes)
+        temp_path = f.name
+
+    try:
+        result = whisper_model.transcribe(
+            temp_path, language="ar", initial_prompt="توقع كلام باللهجة السعودية"
+        )
+        text = result["text"].strip()
+        print("📄 النص:", text)
+        return text
+    finally:
+        import os
+
+        if os.path.exists(temp_path):
+            os.remove(temp_path)

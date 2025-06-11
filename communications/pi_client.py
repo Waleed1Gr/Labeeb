@@ -8,6 +8,9 @@ import numpy as np
 import base64
 from picamera2 import Picamera2
 import io
+import simpleaudio as sa
+import cv2
+
 
 class LabeebClient:
     DISCOVERY_PORT = 5678
@@ -22,7 +25,7 @@ class LabeebClient:
     def setup_audio(self):
         self.sample_rate = 16000
         self.channels = 1
-        self.dtype = 'int16'
+        self.dtype = "int16"
 
     def setup_camera(self):
         self.camera = Picamera2()
@@ -37,10 +40,12 @@ class LabeebClient:
         for _ in range(5):  # Try 5 times
             try:
                 # Broadcast discovery message
-                discovery_socket.sendto(b'LABEEB_DISCOVER', ('<broadcast>', self.DISCOVERY_PORT))
+                discovery_socket.sendto(
+                    b"LABEEB_DISCOVER", ("<broadcast>", self.DISCOVERY_PORT)
+                )
                 data, addr = discovery_socket.recvfrom(1024)
-                
-                if data == b'LABEEB_SERVER':
+
+                if data == b"LABEEB_SERVER":
                     self.server_ip = addr[0]
                     print(f"✨ Found Labeeb server at {self.server_ip}")
                     return True
@@ -50,7 +55,7 @@ class LabeebClient:
             except Exception as e:
                 print(f"❌ Discovery error: {e}")
                 await asyncio.sleep(1)
-        
+
         return False
 
     async def connect(self):
@@ -65,11 +70,11 @@ class LabeebClient:
                 server_url = f"ws://{self.server_ip}:{self.SERVICE_PORT}"
                 self.websocket = await websockets.connect(server_url)
                 print(f"🔗 Connected to Labeeb server at {server_url}")
-                
+
                 await asyncio.gather(
                     self.stream_audio(),
                     self.stream_camera(),
-                    self.handle_server_messages()
+                    self.handle_server_messages(),
                 )
             except Exception as e:
                 print(f"❌ Connection error: {e}")
@@ -78,19 +83,26 @@ class LabeebClient:
 
     async def stream_audio(self):
         """Continuously stream audio to server"""
+
         def audio_callback(indata, frames, time, status):
             if self.websocket:
                 audio_bytes = indata.tobytes()
-                asyncio.create_task(self.websocket.send(json.dumps({
-                    "type": "audio",
-                    "data": base64.b64encode(audio_bytes).decode()
-                })))
+                asyncio.create_task(
+                    self.websocket.send(
+                        json.dumps(
+                            {
+                                "type": "audio",
+                                "data": base64.b64encode(audio_bytes).decode(),
+                            }
+                        )
+                    )
+                )
 
         with sd.InputStream(
             channels=self.channels,
             samplerate=self.sample_rate,
             dtype=self.dtype,
-            callback=audio_callback
+            callback=audio_callback,
         ):
             while True:
                 await asyncio.sleep(0.1)
@@ -102,10 +114,11 @@ class LabeebClient:
             # Basic motion detection
             if self.detect_motion(frame):
                 img_bytes = self.frame_to_bytes(frame)
-                await self.websocket.send(json.dumps({
-                    "type": "camera",
-                    "data": base64.b64encode(img_bytes).decode()
-                }))
+                await self.websocket.send(
+                    json.dumps(
+                        {"type": "camera", "data": base64.b64encode(img_bytes).decode()}
+                    )
+                )
             await asyncio.sleep(0.1)
 
     async def handle_server_messages(self):
@@ -114,21 +127,40 @@ class LabeebClient:
             try:
                 message = await self.websocket.recv()
                 data = json.loads(message)
-                
+
                 if data["type"] == "response":
                     # Play audio response
                     self.play_audio(base64.b64decode(data["audio"]))
                 elif data["type"] == "detection":
                     # Handle detection results
                     print(f"Detection: {data['result']}")
-                    
+
             except websockets.exceptions.ConnectionClosed:
                 print("Connection lost, reconnecting...")
                 await self.connect()
 
+    def play_audio(self, audio_bytes):
+        """Play raw PCM audio bytes (16-bit, mono, 16kHz)"""
+        try:
+            play_obj = sa.play_buffer(audio_bytes, 1, 2, self.sample_rate)
+            play_obj.wait_done()
+        except Exception as e:
+            print(f"❌ Audio playback error: {e}")
+
+    def detect_motion(self, frame):
+        """Basic motion detection (placeholder, always True)"""
+        # You can implement real motion detection here
+        return True
+
+    def frame_to_bytes(self, frame):
+        """Convert camera frame (numpy array) to JPEG bytes"""
+        _, buf = cv2.imencode(".jpg", frame)
+        return buf.tobytes()
+
     def start(self):
         """Start the client"""
         asyncio.get_event_loop().run_until_complete(self.connect())
+
 
 if __name__ == "__main__":
     client = LabeebClient()

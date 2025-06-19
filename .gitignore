@@ -1,2 +1,7 @@
 .venv/
 .env
+*.pyc
+*.pyo
+*.pyd
+*.cpython
+**/__pycache__/

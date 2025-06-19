@@ -32,12 +32,13 @@ def _play_wav(path: Path):
     except Exception as e:
         print(f"simpleaudio playback error: {e}")
 
-
+#'alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer', 'verse'
 def speak(text: str,
-          voice: str = "echo",
+          voice: str = "ash",
           instructions: str = "تكلم بلهجة سعودية نجدية واضحة، لا تغلط بالكلمات وخلك ذكي"):
     try:
         text = text.replace("<close_conversation>", "").strip()
+        #prompt = f"{instructions}\n\n{text}"
 
         if _TEMP_RESPONSE.exists():
             try:
@@ -48,7 +49,7 @@ def speak(text: str,
         try:
             with _tts_client.audio.speech.with_streaming_response.create(
                 model="gpt-4o-mini-tts",
-                voice="echo",
+                voice="ash",
                 input=text,
                 response_format="wav",
                 instructions=instructions
@@ -91,7 +92,7 @@ def speak_warning(text: str,
         try:
             with _tts_client.audio.speech.with_streaming_response.create(
                 model="gpt-4o-mini-tts",
-                voice="echo",
+                voice="ash",
                 input=text,
                 response_format="wav",
                 instructions=instructions

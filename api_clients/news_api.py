@@ -14,7 +14,7 @@ from api_clients.llm_api import chat_response
 # We fetch it with a browser-like User-Agent, then parse with feedparser.
 #───────────────────────────────────────────────────────────────────────────────
 
-RSS_URL = "https://www.okaz.com.sa/rssFeed/0"
+RSS_URL = "https://www.okaz.com.sa/rssFeed/190"
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

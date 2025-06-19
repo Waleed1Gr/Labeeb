@@ -15,7 +15,7 @@ def record_until_silence_fixed(
 ) -> bool:
     """
     Records audio from the microphone until a period of silence is detected,
-    then writes it to `filename`. Returns True on success, False otherwise.
+    then writes it to filename. Returns True on success, False otherwise.
     """
     import collections
 

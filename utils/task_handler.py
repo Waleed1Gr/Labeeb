@@ -1,3 +1,5 @@
+# Updated task_handler.py with smart time handling
+
 from pathlib import Path
 import json
 from datetime import datetime
@@ -7,12 +9,15 @@ from utils.faiss_helper import create_index, add_embedding, search_index
 from api_clients.tts_api import speak
 import numpy as _np
 
+# ✨ Import the new task extractor
+from utils.task_extractor import extract_task_content
+
 # Determine project root and ensure tasks.json is saved/loaded there
 BASE_DIR = Path(__file__).parent.parent.resolve()
 DATA_TASKS_FILE = BASE_DIR / "tasks.json"
 
 # In-memory stores
-tasks = []       # Each item: {"text": str, "time": datetime}
+tasks = []       # Each item: {"text": str, "time": datetime, "time_specified": bool}
 embeddings = []  # Each item: list[float]
 index = create_index(dimension=384)
 
@@ -20,9 +25,6 @@ def load_tasks():
     """
     Load tasks from tasks.json (if it exists), rebuild the FAISS index,
     and repopulate in-memory `tasks` and `embeddings` lists.
-
-    Any errors during embedding fetch are logged; tasks with failed embeddings
-    will still be loaded (but won't be indexed).
     """
     global tasks, embeddings, index
     try:
@@ -36,19 +38,28 @@ def load_tasks():
 
             for entry in loaded:
                 try:
-                    dt = datetime.fromisoformat(entry["time"])
                     text = entry["text"]
+                    time_str = entry["time"]
+                    # Convert time string to datetime for backward compatibility
+                    if isinstance(time_str, str):
+                        dt = datetime.fromisoformat(time_str)
+                    else:
+                        dt = time_str
+                        
                 except Exception as parse_err:
                     print(f"⚠️ Skipping invalid task entry: {entry} ({parse_err})")
                     continue
 
-                tasks.append({"text": text, "time": dt})
+                tasks.append({
+                    "text": text, 
+                    "time": dt
+                })
+                
                 try:
                     emb = get_embedding(text)
                     if emb and isinstance(emb, list) and len(emb) == 384:
                         embeddings.append(emb)
                     else:
-                        # If embedding is empty or malformed, append a zero vector
                         print(f"⚠️ Received invalid embedding for task '{text}', using zero vector instead.")
                         embeddings.append([0.0] * 384)
                 except Exception as emb_err:
@@ -61,22 +72,32 @@ def load_tasks():
                     index.add(_np.array(embeddings, dtype=_np.float32))
                 except Exception as idx_err:
                     print(f"⚠️ Failed to add embeddings to FAISS index: {idx_err}")
+                    
+            print(f"✅ Loaded {len(tasks)} tasks")
+            
+            # 🔧 Auto-save in new format if we fixed any old tasks
+            needs_save = any("time_specified" not in entry for entry in loaded if isinstance(entry, dict))
+            if needs_save:
+                print("🔧 Auto-updating tasks.json to new format...")
+                save_tasks()  # This will save with the new format
     except Exception as e:
         print(f"Load tasks error: {e}")
 
 def save_tasks():
     """
     Persist the current `tasks` list to tasks.json in the project root.
-    Each entry is saved as {"text": ..., "time": <ISO-8601 string>}.
+    Each entry is saved as {"text": ..., "time": <ISO-8601 string>, "time_specified": bool}.
     """
     try:
-        # Ensure parent directory exists (it should, but just in case)
         DATA_TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
 
         with open(DATA_TASKS_FILE, "w", encoding="utf-8") as f:
             json.dump(
                 [
-                    {"text": t["text"], "time": t["time"].isoformat()}
+                    {
+                        "text": t["text"], 
+                        "time": t["time"].isoformat() if isinstance(t["time"], datetime) else t["time"]
+                    }
                     for t in tasks
                 ],
                 f,
@@ -86,29 +107,43 @@ def save_tasks():
     except Exception as e:
         print(f"Save tasks error: {e}")
 
-def add_task(text: str):
+def add_task(raw_input: str, conversation_history=None):
     """
-    Add a new task. Parses any Arabic date in `text`, obtains its embedding,
-    appends to in-memory lists, updates FAISS index, persists tasks.json,
-    and provides voice feedback.
-
-    If embedding fails, uses a zero vector placeholder to avoid crashing.
+    Add a new task with improved content extraction and smart time handling.
+    Now with context awareness for handling references to previous conversations.
+    
+    Args:
+        raw_input: The full user input (e.g., "سجل مهمة أداء الاختبار بكرة")
+        conversation_history: List of recent conversation exchanges
     """
     global index
     try:
-        dt = parse_date_arabic(text) or datetime.now()
+        # ✨ Extract clean task content with context awareness
+        if conversation_history:
+            from utils.task_extractor import extract_task_with_context
+            clean_task = extract_task_with_context(raw_input, conversation_history)
+        else:
+            from utils.task_extractor import extract_task_content
+            clean_task = extract_task_content(raw_input)
 
-        # Attempt to get embedding
+        print(f"📝 Raw input: '{raw_input}'")
+        print(f"✨ Extracted task: '{clean_task}'")
+        print(f"📅 Recorded at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+        # Attempt to get embedding for the clean task content
         try:
-            emb = get_embedding(text)
+            emb = get_embedding(clean_task)
             if not emb or not isinstance(emb, list) or len(emb) != 384:
                 raise ValueError("Invalid embedding shape")
         except Exception as emb_err:
-            print(f"⚠️ Embedding fetch failed for new task '{text}': {emb_err}. Using zero vector.")
+            print(f"⚠️ Embedding fetch failed for new task '{clean_task}': {emb_err}. Using zero vector.")
             emb = [0.0] * 384
 
-        # Update in-memory stores
-        tasks.append({"text": text, "time": dt})
+        # Update in-memory stores with clean task content
+        tasks.append({
+            "text": clean_task, 
+            "time": datetime.now().isoformat()  # ✨ Just when you recorded it
+        })
         embeddings.append(emb)
 
         # Update FAISS index
@@ -120,13 +155,16 @@ def add_task(text: str):
         # Persist to disk
         save_tasks()
 
-        print(f"✅ سجلت: \"{text}\" @ {dt.isoformat()}")
+        print(f"✅ سجلت: \"{clean_task}\" @ {datetime.now().isoformat()}")
         speak("تم تسجيل المهمة يا بطل!")
     except Exception as e:
         print(f"Add task error: {e}")
         speak("حصل خطأ في تسجيل المهمة")
 
 def delete_task(query: str):
+    """
+    Delete a task with improved query processing.
+    """
     global tasks, embeddings, index
 
     try:
@@ -143,22 +181,22 @@ def delete_task(query: str):
 
         # 🎯 Handle specific deletion patterns
         if any(phrase in query_lower for phrase in ["آخر مهمة", "اخر مهمة", "المهمة الأخيرة", "last task"]):
-            # Delete the most recently added task (last in the list)
             idx_to_delete = len(tasks) - 1
             task_to_delete = tasks[idx_to_delete]
             print(f"🎯 Detected 'last task' request")
             
         elif any(phrase in query_lower for phrase in ["أول مهمة", "اول مهمة", "المهمة الأولى", "first task"]):
-            # Delete the first task
             idx_to_delete = 0
             task_to_delete = tasks[idx_to_delete]
             print(f"🎯 Detected 'first task' request")
             
         else:
             # 🔍 Use semantic similarity search for specific task content
-            print(f"🔍 Using semantic search for: '{query}'")
+            from utils.task_extractor import extract_delete_query
+            clean_query = extract_delete_query(query)
+            print(f"🔍 Using semantic search for: '{clean_query}'")
             
-            q_emb = get_embedding(query)
+            q_emb = get_embedding(clean_query)
             if not q_emb or not isinstance(q_emb, list) or len(q_emb) != 384:
                 speak("ما فهمت المهمة اللي تبي تحذفها.")
                 return
@@ -172,13 +210,11 @@ def delete_task(query: str):
             idx_to_delete = indices[0]
             task_to_delete = tasks[idx_to_delete]
 
-        # تأكد من أن الفهرس صحيح
         if idx_to_delete is None or idx_to_delete < 0 or idx_to_delete >= len(tasks):
             print(f"❌ Invalid index: {idx_to_delete}, tasks length: {len(tasks)}")
             speak("حصل خطأ في تحديد المهمة.")
             return
 
-        # اعرض المهمة المراد حذفها
         print(f"🗑️ Deleting task: {task_to_delete['text']} (Index: {idx_to_delete})")
         
         # نحذف المهمة والembedding
@@ -200,25 +236,26 @@ def delete_task(query: str):
         import traceback
         traceback.print_exc()
         speak("حصل خطأ في حذف المهمة.")
-    
+
 def search_tasks(query: str, k: int = 5) -> list:
     """
     Search tasks by date if a date keyword is present (±1 day),
     otherwise perform a k-NN search in the FAISS index for semantic similarity.
-    If embedding fails or returns invalid, fall back to returning ALL tasks.
-    Returns a list of matching tasks (each as {"text": ..., "time": datetime}).
+    Returns a list of matching tasks in their original format.
     """
     try:
         if not tasks:
             return []
 
         # If query contains an Arabic date token, return tasks near that date
-        dt = parse_date_arabic(query)
-        if dt:
-            return [
+        dt_result, _ = parse_date_arabic(query)
+        if dt_result:
+            matching_tasks = [
                 t for t in tasks
-                if abs((t["time"].date() - dt.date()).days) <= 1
+                if abs((t["time"].date() - dt_result.date()).days) <= 1
             ]
+            print(f"🔍 Date search found {len(matching_tasks)} tasks")
+            return matching_tasks
 
         # Otherwise, try semantic search
         try:
@@ -226,15 +263,101 @@ def search_tasks(query: str, k: int = 5) -> list:
             if not q_emb or not isinstance(q_emb, list) or len(q_emb) != 384:
                 raise ValueError("Invalid query embedding")
             indices = search_index(index, q_emb, k)
-            return [tasks[i] for i in indices if i < len(tasks)]
+            matching_tasks = [tasks[i] for i in indices if i < len(tasks)]
+            print(f"🔍 Semantic search found {len(matching_tasks)} tasks")
+            return matching_tasks
         except Exception as emb_err:
             print(f"⚠️ Embedding fetch failed for search query '{query}': {emb_err}. Falling back to all tasks.")
-            # If embedding fails, simply return all tasks
+            # Return all tasks in original format for fallback
+            print(f"🔍 Fallback returning {len(tasks)} tasks")
             return tasks.copy()
     except Exception as e:
         print(f"Search tasks error: {e}")
         return []
+
+def format_task_for_display(task: dict) -> dict:
+    """
+    Format a task for display, showing time only if it was explicitly specified.
+    """
+    display_task = task.copy()
     
+    # If time was not explicitly specified, we show just the task text
+    # The internal timestamp is kept for sorting/filtering but not shown to user
+    if not task["time_specified"]:
+        # Keep the original clean task text without showing the internal timestamp
+        pass  # display_task["text"] already contains the clean text
+    
+    return display_task
+
+def get_all_tasks_for_display() -> list:
+    """
+    Get all tasks for display - just return the task texts from JSON.
+    """
+    return [task["text"] for task in tasks]
+
+def find_task_recording_time(query: str):
+    """Find when a specific task was recorded."""
+    try:
+        query_lower = query.lower()
+        
+        # Extract task keywords from query like "متى سجلت مهمة الاختبار؟"
+        import re
+        clean_query = re.sub(r'متى\s+سجلت\s+(مهمة\s+)?', '', query_lower).strip()
+        clean_query = re.sub(r'[؟?]', '', clean_query).strip()
+        
+        if not clean_query:
+            speak("أي مهمة تقصد؟")
+            return
+        
+        # Search for matching task
+        for task in tasks:
+            if any(word in task["text"].lower() for word in clean_query.split()):
+                # Format the recorded time nicely
+                recorded_dt = datetime.fromisoformat(task["time"])
+                formatted_time = recorded_dt.strftime("%d %B الساعة %H:%M")
+                
+                speak(f"سجلت مهمة '{task['text']}' يوم {formatted_time}")
+                return
+        
+        speak("ما لقيت المهمة اللي تقصدها")
+        
+    except Exception as e:
+        print(f"❌ Error finding task recording time: {e}")
+        speak("حصل خطأ في البحث عن المهمة")
+
+def find_task_recording_time(query: str):
+    """Find when a specific task was recorded."""
+    try:
+        query_lower = query.lower()
+        
+        # Extract task keywords from query like "متى سجلت مهمة الاختبار؟"
+        import re
+        clean_query = re.sub(r'متى\s+سجلت\s+(مهمة\s+)?', '', query_lower).strip()
+        clean_query = re.sub(r'[؟?]', '', clean_query).strip()
+        
+        if not clean_query:
+            speak("أي مهمة تقصد؟")
+            return
+        
+        # Search for matching task
+        for task in tasks:
+            if any(word in task["text"].lower() for word in clean_query.split()):
+                # Use the time field (when you recorded it)
+                if isinstance(task["time"], str):
+                    recorded_dt = datetime.fromisoformat(task["time"])
+                else:
+                    recorded_dt = task["time"]
+                    
+                formatted_time = recorded_dt.strftime("%d %B الساعة %H:%M")
+                speak(f"سجلت مهمة '{task['text']}' يوم {formatted_time}")
+                return
+        
+        speak("ما لقيت المهمة اللي تقصدها")
+        
+    except Exception as e:
+        print(f"❌ Error finding task recording time: {e}")
+        speak("حصل خطأ في البحث عن المهمة")
+
 def clear_all_tasks():
     """
     Clears all tasks and embeddings and resets FAISS index.
@@ -244,3 +367,25 @@ def clear_all_tasks():
     embeddings.clear()
     index = create_index(dimension=384)
     save_tasks()
+
+def extract_delete_query(query: str) -> str:
+    """Extract meaningful content from delete queries."""
+    import re
+    
+    delete_patterns = [
+        r'^احذف\s+مهمة\s+',
+        r'^احذف\s+لي\s+مهمة\s+',
+        r'^احذف\s+',
+        r'^شيل\s+مهمة\s+',
+        r'^شيل\s+',
+        r'^امسح\s+مهمة\s+',
+        r'^امسح\s+',
+    ]
+    
+    cleaned = query.strip()
+    for pattern in delete_patterns:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE).strip()
+        if cleaned != query:
+            break
+    
+    return cleaned if cleaned else query

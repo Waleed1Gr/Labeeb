@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from openai import OpenAI, OpenAIError
 
-# Initialize OpenAI client (ensure OPENAI_API_KEY is set in .env or environment)
 api_key = os.getenv("OPENAI_API_KEY")
 client = None
 try:
@@ -20,7 +19,7 @@ def transcribe_from_file(filepath: Path, language: str = "ar", prompt: str = "ت
     """
     try:
         with open(filepath, "rb") as audio_file:
-            # Call the Whisper endpoint; `response` is a Transcription object
+            # Call the Whisper endpoint; response is a Transcription object
             response = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
@@ -31,7 +30,7 @@ def transcribe_from_file(filepath: Path, language: str = "ar", prompt: str = "ت
         # The Transcription object exposes the text via .text
         transcript = getattr(response, "text", None)
         if transcript is None:
-            # In some SDK versions, it might be under `.text` or `.text` inside choices
+            # In some SDK versions, it might be under .text or .text inside choices
             # But in newer OpenAI Python SDK, response.text is correct.
             # If no .text attribute, try dict‐style fallback:
             try:

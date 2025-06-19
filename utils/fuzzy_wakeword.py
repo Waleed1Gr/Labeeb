@@ -1,6 +1,5 @@
 from dotenv import load_dotenv
 load_dotenv()
-
 import time
 from pathlib import Path
 from api_clients.stt_api import transcribe_from_file
@@ -13,6 +12,32 @@ import numpy as np
 
 WAKE_WORDS = ["لبيب", "لبي", "لب", "labeeb"]
 SILENCE_THRESHOLD = 80  # Adjust this threshold based on microphone sensitivity
+
+# ─── متغيرات الترحيب المؤجلة ────────────────
+pending_greeting = None
+greeted_names = set()
+
+GREETINGS = {
+    "Waleed": "هلا وليد, كيف اقدر اخدمك",
+    "Naif": "هلا نايف, كيف اقدر اخدمك",
+    "Osama": "هلا اسامة, كيف اقدر اخدمك",
+    "Abdulrahman": "هلا عبد الرحمن, كيف اقدر اخدمك",
+    "Abdullah": "هلا عبدالله, كيف اقدر اخدمك"
+}
+# ──────────────────────────────────────────────
+
+def greet_detected_names(names):
+    """
+    تخزين الأسماء التي تم رصدها لكن لم يُرحَّب بها بعد.
+    """
+    global pending_greeting, greeted_names
+    for name in names:
+        if name.lower() not in greeted_names:
+            pending_greeting = name
+            greeted_names.add(name.lower())
+            print(f"📌 تم تخزين الاسم المؤجل: {name}")
+            break  # نخزن أول اسم فقط
+
 
 def wait_for_wake_word(duration: int = 3, sample_rate: int = 16000) -> bool:
     """
@@ -45,17 +70,25 @@ def wait_for_wake_word(duration: int = 3, sample_rate: int = 16000) -> bool:
                 language="ar",
                 prompt="لبيب هو اسم الروبوت. الكلمات المتوقعة: لبيب"
             )
-            if(amplitude < 0.002):
+            if amplitude < 0.002:
                 print("🔇 لا يوجد صوت كافي، إعادة المحاولة...")
             else:
                 print("👂 سمع:", text)
 
             if any(word in text for word in WAKE_WORDS):
                 print("✨ تم التعرف على كلمة التنبيه!")
-                speak("نعم، كيف اقدر اخدمك؟")
+                global pending_greeting
+                # 👉 الترحيب بالاسم المؤجل (إن وُجد)
+                if pending_greeting and pending_greeting.capitalize() in GREETINGS:
+                    greeting = GREETINGS[pending_greeting.capitalize()]
+                    speak(greeting)  # مثل: "هلا وليد، كيف اقدر اخدمك"
+                    pending_greeting = None  # إعادة تعيين بعد الترحيب
+                else:
+                    speak("نعم، كيف اقدر اخدمك؟")
+
                 return True
 
-            time.sleep(0.1)
+            time.sleep(0.3)
         except Exception as e:
             print(f"❌ خطأ في التعرف على الصوت: {e}")
             time.sleep(1)

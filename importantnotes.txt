@@ -1,133 +1,79 @@
-هذا الملف فيه بعض ملاحظات كوبايلت، حبيت اكتبها هنا عشان ممكن تفيدنا بعدين.
+Labeeb Project Tasks (Prioritized)
+I've analyzed your codebase and organized all tasks, TODOs, FIXMEs, and important comments based on dependencies and impact. Here's the comprehensive list in priority order:
 
+1. Foundation and Infrastructure Issues
+1.1 Fix YOLO Model Loading
+Status: Critical issue preventing startup
+Location: detector.py
+Problem: torch.hub.load('ultralytics/yolov5su', 'yolov5su', pretrained=True) points to non-existent repo
+Solution: Replace with local model loading via YOLO('yolov5su.pt') with ultralytics package
+1.2 Fix session_active Variable
+Comment: # * session active is not actually defined, FIXME: define the session_active variable in the config module.
+Location: main.py, line ~82
+Impact: Critical for conversation state management
+1.3 Implement Proper Thread Handling
+Location: Multiple files including camera.py and main.py
+Problem: Background threads for vision/audio need proper cleanup
+2. Localization of AI Models
+2.1 LLM Localization (Priority)
+Comment: # * this might be changed after making the LLM local.
+Location: main.py, line ~121
+Task: Replace OpenAI API-based LLM with local implementation
+Dependency: Core functionality for chat and classification
+2.2 TTS Localization
+TODO: # TODO: fine-tune the TTS model to speak the saudi dialect.
+Location: speak.py, line ~11
+Task: Replace OpenAI TTS API with local TTS model
+2.3 STT Localization
+Location: listen.py
+Task: Ensure Whisper runs locally for speech recognition
+3. Audio System Improvements
+3.1 Replace Barge-in System
+TODO: # ! this is going to be replaced by a full barge-in system.
+Location: speak.py, line ~42
+Comment: # TODO: replace this with the function related to the barge-in system after implementing it.
+Location: main.py, line ~102
+3.2 Improve Audio Playback Detection
+TODO: # TODO: replace this function, with the webrtcvad's method (is_playing) after implementing it.
+Location: main.py, line ~101
+3.3 Fix Audio Distribution Logic
+TODO: # TODO: this function might be transferred to the PI, but if the server can just send the audio to the pi and play it immediately, then no need to transfer it.
+TODO: # TODO: this is the same thing as the play_audio function, if the server can just send the audio to the pi and play it immediately, then might be better to remove it.
+Location: speak.py, lines ~16, ~30
+3.4 Remove Redundant Audio Function
+TODO: # ! no need for this function, since the server can just send the audio to the pi and play it immediately.
+Location: speak.py, line ~47
+4. Vision System Improvements
+4.1 Update YOLO Version
+TODO: #TODO: replace the yolo5 model with the yolo8 model.
+Location: camera.py, line ~24
+4.2 Fix Phone Detection in Server
+FIXME: # FIXME: this should be replaced with phone_person_detector from camera.py
+Location: main.py, line ~50
+5. Code Architecture Improvements
+5.1 Relocate Function Classification
+Comment: # ? why is this here? it should be in the LLM file. FIXME: relocate this function to the LLM module.
+Location: task_manager.py, line ~74
+Task: Move classify_input() to appropriate module
+5.2 Refactor Server-Client Logic
+Comment: # ! this might have no use after implementing the server-client logic in the I/O system of labeeb.
+Location: main.py, line ~30
+FIXME: # FIXME: this might be modified after fixing the server-client logic in the I/O system of labeeb.
+Location: main.py, line ~148
+5.3 Implement Delete Task Functionality
+TODO: # TODO: add the delete task functionality here.
+Location: main.py, line ~43
+6. Documentation and Testing
+6.1 Add Comment Annotations
+Task: Document code sections that are unclear
+6.2 Create Test Cases
+Task: Implement tests for critical components, especially newly localized models
+Implementation Strategy
+Based on the list above, I recommend this implementation sequence:
 
-Best practices for using cleanup:
-
-Call it before program exit
-Use it in a context manager or destructor
-Implement it in try/finally blocks for critical sections
-This ensures your knowledge base changes are saved and resources are properly released.
-
----------------------------------------------------------------------------------------------------------------
-هذي تحسينات كوبايلت بعد ما خلصت الكومت الي قبل هذا:
----------------------------------------------------------------------------------------------------------------
-# RAG System and Text Processing Implementation Guide
-
-## 1. Text Processing Pipeline
-Here's the recommended flow for handling text in your robot:
-
-```mermaid
-graph LR
-    A[STT Input] --> B[Text Preprocessing]
-    B --> C[RAG Context]
-    C --> D[LLM Processing]
-    D --> E[Text Postprocessing]
-    E --> F[TTS Output]
-```
-
-## 2. Enhanced RAG Implementation
-````python
-from arabic_reshaper import reshape
-from bidi.algorithm import get_display
-import re
-
-class TextProcessor:
-    @staticmethod
-    def preprocess_arabic(text):
-        """Clean and normalize Arabic text"""
-        # Remove diacritics
-        text = re.sub(r'[\u064B-\u065F\u0670]', '', text)
-        # Normalize alefs and hamzas
-        text = re.sub(r'[إأآا]', 'ا', text)
-        return text
-
-    @staticmethod
-    def format_for_display(text):
-        """Format Arabic text for proper display"""
-        reshaped_text = reshape(text)
-        return get_display(reshaped_text)
-````
-
-## 3. Improved RAG System
-````python
-from .text_processor import TextProcessor
-
-class RAGSystem:
-    def __init__(self, knowledge_base_dir, persist_directory="./chroma_store"):
-        # ...existing code...
-        self.text_processor = TextProcessor()
-        
-    def query(self, question, k=3):
-        """Enhanced query with text processing"""
-        # Preprocess the question
-        processed_question = self.text_processor.preprocess_arabic(question)
-        
-        # Get results
-        results = self.collection.query(
-            query_texts=[processed_question],
-            n_results=k
-        )
-        
-        return results["documents"][0] if results["documents"] else []
-````
-
-## 4. Interface with STT/TTS
-````python
-from .LLM import LLM
-from .RAG.text_processor import TextProcessor
-
-class ConversationManager:
-    def __init__(self, api_key):
-        self.llm = LLM(api_key)
-        self.text_processor = TextProcessor()
-        
-    def process_input(self, stt_text):
-        """Process input from STT"""
-        processed_text = self.text_processor.preprocess_arabic(stt_text)
-        response = self.llm.generate_response(processed_text)
-        return self.text_processor.format_for_display(response)
-````
-
-## Professional Advice
-
-### 1. Arabic Text Handling
-- Use proper Arabic text preprocessing
-- Handle right-to-left text correctly
-- Consider dialectal variations in your knowledge base
-
-### 2. Knowledge Base Management
-- Start with a small, focused knowledge base
-- Regularly update and clean your data
-- Use version control for your knowledge base
-
-### 3. Performance Optimization
-- Implement caching for frequent queries
-- Monitor memory usage on the Raspberry Pi
-- Log system performance metrics
-
-### 4. Testing
-````python
-import pytest
-from agents.RAG.text_processor import TextProcessor
-
-def test_arabic_preprocessing():
-    processor = TextProcessor()
-    test_text = "إِنَّ هَذَا النَّصَّ يَحْتَوِي عَلَى تَشْكِيل"
-    processed = processor.preprocess_arabic(test_text)
-    assert "ان هذا النص يحتوي على تشكيل" in processed
-````
-
-### 5. Documentation
-Maintain clear documentation for:
-- Knowledge base structure
-- Text processing pipeline
-- API interfaces for STT/TTS teams
-
-### 6. Resources to Learn More
-1. Hugging Face's RAG tutorials
-2. LangChain documentation
-3. Arabic NLP resources on GitHub
-4. ChromaDB documentation
-
-Would you like me to elaborate on any of these aspects?
-
+First fix the critical YOLO loading and session_active issues to get the system running
+Localize the models (LLM first, then TTS/STT)
+Improve audio system with barge-in detection
+Enhance vision system (upgrade to YOLOv8)
+Finally, refactor the architecture and add additional features
+This approach ensures you can make progress incrementally while maintaining a working system.

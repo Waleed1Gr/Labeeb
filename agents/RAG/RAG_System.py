@@ -4,6 +4,10 @@ import chromadb
 from chromadb.config import Settings
 import os
 
+# * this entire file seems to be useless right now. fix it, then implement it to improve labeeb's task retrieval and knowledge base capabilities.
+
+
+# FIXME: implement the RAG system properly and use it in the tasks folder.
 class RAGSystem:
     def __init__(self, knowledge_base_dir, persist_directory="./chroma_store"):
         self.knowledge_base_dir = knowledge_base_dir

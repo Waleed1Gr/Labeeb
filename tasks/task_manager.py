@@ -74,6 +74,7 @@ def load_tasks():
     except Exception as e:
         print(f"Load tasks error: {e}")
 
+# ? why is this here? it should be in the LLM file. FIXME: relocate this function to the LLM module.
 def classify_input(user_input):
     try:
         prompt = f"""أنت مساعد شخصي ذكي باللهجة السعودية.

@@ -27,6 +27,7 @@ def phone_person_detector():
         # Method 1: Try ultralytics package directly
         try:
             from ultralytics import YOLO
+            #TODO: replace the yolo5 model with the yolo8 model.
             model = YOLO('yolov5su.pt')
             print("✅ تم تحميل YOLOv5 من ultralytics")
         except ImportError:

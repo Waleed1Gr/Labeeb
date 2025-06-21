@@ -16,7 +16,7 @@ from models.model import whisper_model
 # Initialize VAD with moderate sensitivity
 vad = webrtcvad.Vad(2)
 
-
+# TODO: remake this function to wait for the audio from the client and convert it into a proper audio file.
 def record_until_silence(
     filename: str,
     sample_rate: int = 16000,
@@ -95,7 +95,7 @@ def record_until_silence(
         stream.stop()
         stream.close()
 
-
+# TODO: replace the current wake word detection with a more robust method like porcupine.
 def wait_for_wake_word():
     """Listen for wake word"""
     print("🔊 بانتظار كلمة التنبيه: 'لبيب'...")
@@ -126,7 +126,7 @@ def wait_for_wake_word():
         if temp_path.exists():
             temp_path.unlink()
 
-
+# TODO: look into why this function exist and if the record_until_silence does what this does, then remove this.
 def record_and_transcribe(wait_for_wake=True):
     """Record and transcribe speech"""
     global session_active, last_interaction
@@ -170,7 +170,7 @@ def record_and_transcribe(wait_for_wake=True):
         if temp_path.exists():
             temp_path.unlink()
 
-
+# TODO: if this function is also being replaced by record_until_silence, then remove this.
 def transcribe_audio_bytes(audio_bytes, sample_rate=16000):
     """Transcribe audio bytes (from Pi) using Whisper."""
     # Save to temp file (Whisper expects a file)

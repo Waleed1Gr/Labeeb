@@ -21,7 +21,7 @@ from audio.listen import (
 import time
 import threading
 from vision.camera import phone_person_detector
-from vision.detector import detect_from_image_bytes
+# from vision.detector import detect_from_image_bytes
 from utils.config import client, session_active
 import shutil
 import asyncio
@@ -29,7 +29,7 @@ import websockets
 import json
 import base64
 
-
+# ! this might have no use after implementing the server-client logic in the I/O system of labeeb.
 async def handle_pi(websocket):
     print("🔗 Pi connected!")
     load_tasks()
@@ -47,6 +47,7 @@ async def handle_pi(websocket):
                 elif intent == "تذكير":
                     related = search_tasks(text)
                     reply = chat_response(text, related)
+                # TODO: add the delete task functionality here.
                 else:
                     reply = "تم الاستلام: " + text
                 tts_bytes = generate_speech_bytes(reply)
@@ -61,6 +62,7 @@ async def handle_pi(websocket):
                 )
             elif data["type"] == "camera":
                 img_bytes = base64.b64decode(data["data"])
+                # FIXME: this should be replaced with phone_person_detector from camera.py
                 detections = detect_from_image_bytes(img_bytes)
                 await websocket.send(
                     json.dumps({"type": "detection", "detections": detections})
@@ -80,6 +82,7 @@ def main():
 
         while True:
             try:
+                # * session active is not actually defined, FIXME: define the session_active variable in the config module.
                 if not session_active:
                     # Only try to detect wake word when session is inactive
                     if wait_for_wake_word():
@@ -94,8 +97,9 @@ def main():
 
                 # Process normal input
                 intent = classify_input(user_input)
-
+                # TODO: replace this function, with the webrtcvad's method (is_playing) after implementing it.
                 if is_currently_speaking():
+                    # TODO: replace this with the function related to the barge-in system after implementing it.
                     stop_current_speech()
                     time.sleep(0.1)
 
@@ -115,6 +119,7 @@ def main():
                         continue
                 else:
                     try:
+                        # * this might be changed after making the LLM local.
                         prompt = f"""أنت مساعد شخصي باللهجة السعودية، رد على السؤال التالي:
                         السؤال: {user_input}
                         """
@@ -157,6 +162,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # FIXME: this might be modified after fixing the server-client logic in the I/O system of labeeb.
     start_server = websockets.serve(handle_pi, "0.0.0.0", 6789)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()

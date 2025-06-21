@@ -13,7 +13,10 @@ stop_speaking_flag = False
 is_speaking = False
 speech_lock = threading.Lock()
 
+# TODO: fine-tune the TTS model to speak the saudi dialect.
 
+
+# TODO: this function might be transferred to the PI, but if the server can just send the audio to the pi and play it immediately, then no need to transfer it.
 def play_audio(audio_data):
     """Play audio data in a separate thread"""
     global current_play_obj, is_speaking, stop_speaking_flag
@@ -38,7 +41,7 @@ def play_audio(audio_data):
             current_play_obj = None
             stop_speaking_flag = False
 
-
+# TODO: this is the same thing as the play_audio function, if the server can just send the audio to the pi and play it immediately, then might be better to remove it.
 def speak(text):
     """Generate and play speech for given text"""
     global playback_thread, stop_speaking_flag
@@ -69,13 +72,13 @@ def speak(text):
     except Exception as e:
         print(f"Speech error: {e}")
 
-
+# ! might be replaced by the webrtcvad's method (is_playing).
 def is_currently_speaking():
     """Thread-safe check if speech is ongoing"""
     with speech_lock:
         return is_speaking
 
-
+# ! this is going to be replaced by a full barge-in system.
 def stop_current_speech():
     """Thread-safe speech interruption"""
     global stop_speaking_flag
@@ -84,7 +87,7 @@ def stop_current_speech():
             stop_speaking_flag = True
             current_play_obj.stop()
 
-
+# ! no need for this function, since the server can just send the audio to the pi and play it immediately.
 def generate_speech_bytes(text):
     """Generate TTS audio bytes for the given text (to send to Pi)."""
     import io

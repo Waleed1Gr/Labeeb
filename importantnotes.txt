@@ -1,76 +1,98 @@
 Labeeb Project Tasks (Prioritized)
 I've analyzed your codebase and organized all tasks, TODOs, FIXMEs, and important comments based on dependencies and impact. Here's the comprehensive list in priority order:
-
+----------------------------------------------------------------------------------------------------------------------------------
 1. Foundation and Infrastructure Issues
+
 1.1 Fix YOLO Model Loading
 Status: Critical issue preventing startup
 Location: detector.py
 Problem: torch.hub.load('ultralytics/yolov5su', 'yolov5su', pretrained=True) points to non-existent repo
 Solution: Replace with local model loading via YOLO('yolov5su.pt') with ultralytics package
+
 1.2 Fix session_active Variable
 Comment: # * session active is not actually defined, FIXME: define the session_active variable in the config module.
 Location: main.py, line ~82
 Impact: Critical for conversation state management
+
 1.3 Implement Proper Thread Handling
 Location: Multiple files including camera.py and main.py
 Problem: Background threads for vision/audio need proper cleanup
+----------------------------------------------------------------------------------------------------------------------------------
 2. Localization of AI Models
+
 2.1 LLM Localization (Priority)
 Comment: # * this might be changed after making the LLM local.
 Location: main.py, line ~121
 Task: Replace OpenAI API-based LLM with local implementation
 Dependency: Core functionality for chat and classification
+
 2.2 TTS Localization
 TODO: # TODO: fine-tune the TTS model to speak the saudi dialect.
 Location: speak.py, line ~11
 Task: Replace OpenAI TTS API with local TTS model
+
 2.3 STT Localization
 Location: listen.py
 Task: Ensure Whisper runs locally for speech recognition
+----------------------------------------------------------------------------------------------------------------------------------
 3. Audio System Improvements
+
 3.1 Replace Barge-in System
 TODO: # ! this is going to be replaced by a full barge-in system.
 Location: speak.py, line ~42
 Comment: # TODO: replace this with the function related to the barge-in system after implementing it.
 Location: main.py, line ~102
+
 3.2 Improve Audio Playback Detection
 TODO: # TODO: replace this function, with the webrtcvad's method (is_playing) after implementing it.
 Location: main.py, line ~101
+
 3.3 Fix Audio Distribution Logic
 TODO: # TODO: this function might be transferred to the PI, but if the server can just send the audio to the pi and play it immediately, then no need to transfer it.
 TODO: # TODO: this is the same thing as the play_audio function, if the server can just send the audio to the pi and play it immediately, then might be better to remove it.
 Location: speak.py, lines ~16, ~30
+
 3.4 Remove Redundant Audio Function
 TODO: # ! no need for this function, since the server can just send the audio to the pi and play it immediately.
 Location: speak.py, line ~47
+----------------------------------------------------------------------------------------------------------------------------------
 4. Vision System Improvements
+
 4.1 Update YOLO Version
 TODO: #TODO: replace the yolo5 model with the yolo8 model.
 Location: camera.py, line ~24
+
 4.2 Fix Phone Detection in Server
 FIXME: # FIXME: this should be replaced with phone_person_detector from camera.py
 Location: main.py, line ~50
+----------------------------------------------------------------------------------------------------------------------------------
 5. Code Architecture Improvements
+
 5.1 Relocate Function Classification
 Comment: # ? why is this here? it should be in the LLM file. FIXME: relocate this function to the LLM module.
 Location: task_manager.py, line ~74
 Task: Move classify_input() to appropriate module
+
 5.2 Refactor Server-Client Logic
 Comment: # ! this might have no use after implementing the server-client logic in the I/O system of labeeb.
 Location: main.py, line ~30
 FIXME: # FIXME: this might be modified after fixing the server-client logic in the I/O system of labeeb.
 Location: main.py, line ~148
+
 5.3 Implement Delete Task Functionality
 TODO: # TODO: add the delete task functionality here.
 Location: main.py, line ~43
+----------------------------------------------------------------------------------------------------------------------------------
 6. Documentation and Testing
+
 6.1 Add Comment Annotations
 Task: Document code sections that are unclear
+
 6.2 Create Test Cases
 Task: Implement tests for critical components, especially newly localized models
 Implementation Strategy
 Based on the list above, I recommend this implementation sequence:
-
+----------------------------------------------------------------------------------------------------------------------------------
 First fix the critical YOLO loading and session_active issues to get the system running
 Localize the models (LLM first, then TTS/STT)
 Improve audio system with barge-in detection

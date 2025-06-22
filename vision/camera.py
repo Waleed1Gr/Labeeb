@@ -31,19 +31,7 @@ def phone_person_detector():
             model = YOLO('yolov5su.pt')
             print("✅ تم تحميل YOLOv5 من ultralytics")
         except ImportError:
-            print("❌ ultralytics غير متوفر، محاولة الطريقة التقليدية...")
-            
-            # Method 2: Try torch.hub with force_reload
-            try:
-                model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True, force_reload=True)
-                model.conf = 0.5
-                print("✅ تم تحميل YOLOv5 من torch.hub")
-            except Exception as hub_error:
-                print(f"❌ فشل تحميل YOLOv5: {hub_error}")
-                print("⚠️ سيتم تشغيل البرنامج بدون كشف الجوال")
-                return
-        
-        if model is None:
+            # here, there was another method in case yolo didn'd load, it was by loading it from a local repo. deprecated.
             print("❌ لم أستطع تحميل نموذج YOLOv5، سيتم تشغيل البرنامج بدون كشف الجوال")
             return
 

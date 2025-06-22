@@ -6,7 +6,7 @@ from tasks.task_manager import (
     classify_input,
     chat_response,
 )
-from utils.config import session_active, TEMP_DIR
+from utils.config import session_active, TEMP_DIR, client
 from audio.speak import (
     speak,
     stop_current_speech,
@@ -22,7 +22,6 @@ import time
 import threading
 from vision.camera import phone_person_detector
 # from vision.detector import detect_from_image_bytes
-from utils.config import client, session_active
 import shutil
 import asyncio
 import websockets
@@ -72,12 +71,21 @@ async def handle_pi(websocket):
 
 
 def main():
+    global session_active
+    #recommended by copiloe:
+    stop_event = threading.Event()
+    
     try:
         # Ensure temp directory exists
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
         print("🔰 جاري تحميل المهام...")
         load_tasks()
+        # this thread is for video processing, it will run in the background.
+        vision_thread = threading.Thread(
+            target=phone_person_detector, args=(stop_event,), daemon=True
+        )
+        vision_thread.start()
         print("🚀 تم تشغيل البرنامج بنجاح!")
 
         while True:
@@ -146,6 +154,7 @@ def main():
 
             except KeyboardInterrupt:
                 print("\n🛑 إيقاف البرنامج...")
+                stop_event.set()
                 break
             except Exception as e:
                 print(f"Main loop error: {e}")
@@ -155,6 +164,10 @@ def main():
         # Cleanup
         try:
             stop_current_speech()
+            # Wait for threads to finish (with timeout)
+            if 'vision_thread' in locals() and vision_thread.is_alive():
+                vision_thread.join(timeout=2.0)  # Wait up to 2 seconds
+            
             if TEMP_DIR.exists():
                 shutil.rmtree(TEMP_DIR)
         except Exception as e:
@@ -163,7 +176,8 @@ def main():
 
 if __name__ == "__main__":
     # FIXME: this might be modified after fixing the server-client logic in the I/O system of labeeb.
-    start_server = websockets.serve(handle_pi, "0.0.0.0", 6789)
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    # start_server = websockets.serve(handle_pi, "0.0.0.0", 6789)
+    # asyncio.get_event_loop().run_until_complete(start_server)
+    # asyncio.get_event_loop().run_forever()
+    
     main()

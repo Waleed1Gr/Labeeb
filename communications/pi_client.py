@@ -1,22 +1,23 @@
 import asyncio
 import websockets
 import json
-import socket
 import time
 import sounddevice as sd
+import simpleaudio as sa
 import numpy as np
 import base64
 from picamera2 import Picamera2
-import io
-import simpleaudio as sa
 import cv2
-
+import webrtcvad
+import openwakeword.model as Model
 
 class LabeebClient:
     DISCOVERY_PORT = 5678
     SERVICE_PORT = 6789
+    vad = webrtcvad.Vad(1)
 
     def __init__(self):
+        # * add the server IP here:
         self.server_ip = None
         self.websocket = None
         self.setup_audio()
@@ -30,47 +31,48 @@ class LabeebClient:
     def setup_camera(self):
         self.camera = Picamera2()
         self.camera.start()
+#! useless unless deemed necessary later for auto finding the server.
+    # async def discover_server(self):
+    #     """Find Labeeb server on network"""
+    #     discovery_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    #     discovery_socket.settimeout(2)
 
-    async def discover_server(self):
-        """Find Labeeb server on network"""
-        discovery_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        discovery_socket.settimeout(2)
+    #     for _ in range(5):  # Try 5 times
+    #         try:
+    #             # Broadcast discovery message
+    #             discovery_socket.sendto(
+    #                 b"LABEEB_DISCOVER", ("<broadcast>", self.DISCOVERY_PORT)
+    #             )
+    #             data, addr = discovery_socket.recvfrom(1024)
 
-        for _ in range(5):  # Try 5 times
-            try:
-                # Broadcast discovery message
-                discovery_socket.sendto(
-                    b"LABEEB_DISCOVER", ("<broadcast>", self.DISCOVERY_PORT)
-                )
-                data, addr = discovery_socket.recvfrom(1024)
+    #             if data == b"LABEEB_SERVER":
+    #                 self.server_ip = addr[0]
+    #                 print(f"✨ Found Labeeb server at {self.server_ip}")
+    #                 return True
+    #         except socket.timeout:
+    #             print("🔄 Searching for server...")
+    #             await asyncio.sleep(1)
+    #         except Exception as e:
+    #             print(f"❌ Discovery error: {e}")
+    #             await asyncio.sleep(1)
 
-                if data == b"LABEEB_SERVER":
-                    self.server_ip = addr[0]
-                    print(f"✨ Found Labeeb server at {self.server_ip}")
-                    return True
-            except socket.timeout:
-                print("🔄 Searching for server...")
-                await asyncio.sleep(1)
-            except Exception as e:
-                print(f"❌ Discovery error: {e}")
-                await asyncio.sleep(1)
-
-        return False
+    #     return False
 
     async def connect(self):
-        """Connect to server with auto-discovery"""
+        """Connect to server with fixed IP"""
         while True:
             try:
-                if not self.server_ip:
-                    if not await self.discover_server():
-                        print("❌ Could not find server, retrying...")
-                        continue
-
+                # Use a hardcoded IP (change to your server's IP)
+                self.server_ip = "192.168.1.100"  # Replace with your actual server IP
+                
                 server_url = f"ws://{self.server_ip}:{self.SERVICE_PORT}"
+                print(f"🔄 Connecting to Labeeb server at {server_url}...")
+                
                 self.websocket = await websockets.connect(server_url)
-                print(f"🔗 Connected to Labeeb server at {server_url}")
-
+                print(f"🔗 Connected to Labeeb server!")
+    
+                # Run all communication tasks concurrently
                 await asyncio.gather(
                     self.stream_audio(),
                     self.stream_camera(),
@@ -78,8 +80,15 @@ class LabeebClient:
                 )
             except Exception as e:
                 print(f"❌ Connection error: {e}")
-                self.server_ip = None  # Reset server IP to trigger rediscovery
-                await asyncio.sleep(5)
+                print(f"⏳ Retrying in 5 seconds...")
+                await asyncio.sleep(5)  # Wait before retry
+
+    # define a function to detect wake word using snowboy:
+    async def detect_wake_word(self, audio_chunk):
+        """Detect wake word in audio chunk"""
+        # Placeholder for wake word detection logic
+        # You can use a library like Snowboy or Porcupine here
+        return False  # Always return False for now
 
     async def stream_audio(self):
         """Continuously stream audio to server"""

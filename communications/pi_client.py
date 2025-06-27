@@ -11,6 +11,7 @@ import cv2
 import webrtcvad
 import openwakeword.model as Model
 import signal
+import os
 
 class LabeebClient:
     DISCOVERY_PORT = 5678
@@ -18,9 +19,21 @@ class LabeebClient:
     vad = webrtcvad.Vad(1)
 
     def __init__(self):
-        # * add the server IP here:
+        # * put the actual IP of the server here.
         self.server_ip = None
         self.websocket = None
+        
+        # Initialize wake word detector once
+        try:
+            self.wake_word_model = Model.Models(
+                models_path=os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
+                model_names=["Labeeb.onnx"]
+            )
+            print("✅ Wake word model loaded successfully")
+        except Exception as e:
+            print(f"❌ Failed to load wake word model: {e}")
+            self.wake_word_model = None
+        
         self.setup_audio()
         self.setup_camera()
 
@@ -33,6 +46,7 @@ class LabeebClient:
         self.camera = Picamera2()
         self.camera.start()
 #! useless unless deemed necessary later for auto finding the server.
+#region
     # async def discover_server(self):
     #     """Find Labeeb server on network"""
     #     discovery_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -59,7 +73,7 @@ class LabeebClient:
     #             await asyncio.sleep(1)
 
     #     return False
-
+#endregion
     async def connect(self):
         """Connect to server with fixed IP"""
         reconnect_delay = 5  # Start with 5 seconds
@@ -96,9 +110,29 @@ class LabeebClient:
     # define a function to detect wake word using snowboy:
     async def detect_wake_word(self, audio_chunk):
         """Detect wake word in audio chunk"""
-        # Placeholder for wake word detection logic
-        # You can use a library like Snowboy or Porcupine here
-        return False  # Always return False for now
+        if self.wake_word_model is None:
+            return False
+        
+        try:
+            # OpenWakeWord expects 16kHz 16-bit mono audio
+            predictions = self.wake_word_model.predict(audio_chunk)
+            
+            # Get prediction score for our model
+            score = predictions.get("Labeeb.onnx", 0.0)
+            
+            # Use appropriate threshold (typically 0.5)
+            if score > 0.5:  # Adjust threshold as needed
+                print(f"🔔 Wake word detected! (score: {score:.2f})")
+                # Send wake word detection event to server
+                if self.websocket:
+                    await self.websocket.send(
+                        json.dumps({"type": "wake_word", "event": "detected"})
+                    )
+                return True
+            return False
+        except Exception as e:
+            print(f"Wake word detection error: {e}")
+            return False
 
     async def stream_audio(self):
         """Continuously stream audio to server with voice activity detection"""
@@ -231,6 +265,8 @@ class LabeebClient:
             play_obj.wait_done()
         except Exception as e:
             print(f"❌ Audio playback error: {e}")
+
+    # * revise this, it might be useless.
 
     def detect_motion(self, frame):
         """Basic motion detection (placeholder, always True)"""

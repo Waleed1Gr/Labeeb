@@ -5,6 +5,7 @@ import socket
 import base64
 import time
 from pathlib import Path
+import signal
 
 # Import Labeeb's core functionality
 from tasks.task_manager import (
@@ -20,7 +21,7 @@ from audio.speak import speak, stop_current_speech, generate_speech_bytes
 from audio.listen import wait_for_wake_word
 from vision.camera import phone_person_detector
 from utils.config import client, TEMP_DIR, session, SessionState
-
+from collections import deque
 
 class LabeebServer:
     DISCOVERY_PORT = 5678
@@ -95,7 +96,7 @@ class LabeebServer:
                         if response["type"] == "response":
                             audio_bytes = generate_speech_bytes(response["text"])
                             await websocket.send(json.dumps({
-                                "type": "tts",
+                                "type": "response",
                                 "audio": base64.b64encode(audio_bytes).decode(),
                                 "text": response["text"]
                             }))
@@ -122,7 +123,6 @@ class LabeebServer:
         finally:
             self.clients.remove(websocket)
             print("❌ Client disconnected")
-        
     async def process_audio(self, audio_bytes):
         temp_path = self.temp_dir / f"input_{int(time.time())}.wav"
         try:
@@ -165,6 +165,7 @@ class LabeebServer:
             elif intent == "تذكير":
                 related = search_tasks(text)
                 response_text = chat_response(text, related)
+            # TODO: add more intents just like the presentible version of labeeb.
             else:
                 response_text = chat_response(text, [])
 
@@ -189,7 +190,6 @@ class LabeebServer:
         finally:
             if temp_path.exists():
                 temp_path.unlink()
-
     async def process_image(self, image_bytes):
         temp_path = self.temp_dir / f"image_{int(time.time())}.jpg"
         try:
@@ -204,6 +204,7 @@ class LabeebServer:
             if temp_path.exists():
                 temp_path.unlink()
     # ! this might be deprecated in favor of the new handler method.
+    # region
     # async def handler(self, websocket, path):
     #     self.clients.add(websocket)
     #     try:
@@ -230,32 +231,49 @@ class LabeebServer:
     #                 )
     #     finally:
     #         self.clients.remove(websocket)
-
-    async def discovery_service(self):
-        """Listen for discovery broadcasts"""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("0.0.0.0", self.DISCOVERY_PORT))
-        sock.settimeout(1)
-        print("👂 Listening for discovery messages...")
-        while True:
-            try:
-                data, addr = sock.recvfrom(1024)
-                if data == b"LABEEB_DISCOVER":
-                    print(f"📡 Discovery request from {addr}")
-                    sock.sendto(b"LABEEB_SERVER", addr)
-            except socket.timeout:
-                await asyncio.sleep(0.1)
-
+    # endregion
+    # ! this is deprecated too until we decide to add discovery functionality.
+    # region
+    # async def discovery_service(self):
+    #     """Listen for discovery broadcasts"""
+    #     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     sock.bind(("0.0.0.0", self.DISCOVERY_PORT))
+    #     sock.settimeout(1)
+    #     print("👂 Listening for discovery messages...")
+    #     while True:
+    #         try:
+    #             data, addr = sock.recvfrom(1024)
+    #             if data == b"LABEEB_DISCOVER":
+    #                 print(f"📡 Discovery request from {addr}")
+    #                 sock.sendto(b"LABEEB_SERVER", addr)
+    #         except socket.timeout:
+    #             await asyncio.sleep(0.1)
+    # endregion
     def start(self):
-        """Start both discovery and WebSocket services"""
+        """Start the WebSocket server"""
         loop = asyncio.get_event_loop()
         server = websockets.serve(
-            self.handler, self.host, self.port, ping_interval=None
+            self.handler, self.host, self.port, ping_interval=30
         )
         print(f"🚀 Server running on ws://{self.host}:{self.port}")
-        loop.create_task(self.discovery_service())
+        
+        # Proper signal handling for clean shutdown
+        for signal in [signal.SIGINT, signal.SIGTERM]:
+            loop.add_signal_handler(signal, lambda: asyncio.create_task(self.shutdown(server)))
+        
         loop.run_until_complete(server)
         loop.run_forever()
+
+    async def shutdown(self, server):
+        """Gracefully shut down the server"""
+        print("🛑 Shutting down server...")
+        server.close()
+        await server.wait_closed()
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        asyncio.get_event_loop().stop()
 
 
 if __name__ == "__main__":

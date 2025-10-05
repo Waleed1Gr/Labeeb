@@ -1,0 +1,150 @@
+<mxfile host="65bd71144e">
+    <diagram id="N373xXxMJSzoxm38jFAg" name="System Components">
+        <mxGraphModel dx="722" dy="859" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="light-dark(#ffffff, #121212)" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="13" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="2" target="6">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="400" y="670" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="400" y="670"/>
+                            <mxPoint x="660" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="2" value="Labeeb" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;align=center;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="720" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="21" value="Requires" style="edgeStyle=none;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="3" target="20">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="132.77777777777783" y="540" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="3" value="Seeing" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="90" y="560" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="Requires" style="edgeStyle=none;html=1;" edge="1" parent="1" source="4" target="22">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Talking" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="560" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="Requires" style="edgeStyle=none;html=1;" edge="1" parent="1" source="5" target="24">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Thinking" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="560" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" value="Goal" style="edgeStyle=none;html=1;" edge="1" parent="1" source="6" target="36">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="RAG" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="610" y="560" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" value="Requires" style="edgeStyle=none;html=1;" edge="1" parent="1" source="7" target="26">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="Listening" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="560" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="2" target="7">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="660" y="610" as="targetPoint"/>
+                        <mxPoint x="400" y="720" as="sourcePoint"/>
+                        <Array as="points">
+                            <mxPoint x="400" y="670"/>
+                            <mxPoint x="530" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="16" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="2" target="5">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="530" y="610" as="targetPoint"/>
+                        <mxPoint x="400" y="720" as="sourcePoint"/>
+                        <Array as="points">
+                            <mxPoint x="400" y="640"/>
+                            <mxPoint x="400" y="640"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="17" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" target="4">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="390" y="610" as="targetPoint"/>
+                        <mxPoint x="400" y="720" as="sourcePoint"/>
+                        <Array as="points">
+                            <mxPoint x="400" y="670"/>
+                            <mxPoint x="270" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="18" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="140" y="610" as="targetPoint"/>
+                        <mxPoint x="400" y="720" as="sourcePoint"/>
+                        <Array as="points">
+                            <mxPoint x="400" y="670"/>
+                            <mxPoint x="140" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="19" value="Is capable of" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;labelBorderColor=none;labelBackgroundColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="355" y="680" width="90" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="29" value="Goal" style="edgeStyle=none;html=1;" edge="1" parent="1" source="20" target="28">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="YOLO ML Model" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="90" y="450" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="TTS (Saudi Dialect)" style="html=1;dashed=0;whiteSpace=wrap;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="450" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="24" value="LLM Model" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="450" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="STT" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="450" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="28" value="Detect Phone Distraction" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="90" y="320" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="30" value="Goal" style="edgeStyle=none;html=1;" edge="1" target="31" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="270" y="450" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="31" value="Voice Interaction&lt;div&gt;(To User)&lt;/div&gt;" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="320" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="32" value="Goal" style="edgeStyle=none;html=1;" edge="1" target="33" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="400" y="450" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="33" value="Smart Responses" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="320" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="34" value="Goal" style="edgeStyle=none;html=1;" edge="1" target="35" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="530" y="450" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="35" value="Voice Interaction&lt;div&gt;(To Labeeb)&lt;/div&gt;" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="320" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="36" value="Relevant Responses" style="html=1;dashed=0;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="610" y="320" width="100" height="50" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="JR9g23a_UMbeom3PqwtR" name="Server-client diagram">
+        <mxGraphModel dx="722" dy="859" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

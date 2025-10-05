@@ -1,0 +1,26 @@
+Notes to document the tools needed to make each component of Labeeb Again (Professionally, of course.)
+
+these notes are describing the diagrams of #Labeeb.drawio file in this Repository. specifically the first page.
+
+
+beginning from left to right, starting with the component: (YOLO ML Model)
+
+-it needs a pre-trained model fine-tuned to detect phones, optionally detect distracted expressions.
+-it needs a Computer Vision functionality, which is gonna be a video streamed from the client "Robot" to the server "Host/brain"
+
+second, the Text-To-Speech component: TTS (Saudi Dialect)
+(this part specifically might be an API to reduce pain in this phase of proof of concept)
+-a dataset of saudi speech, a large one at that.
+-a TTS ML Model.
+-a way to stream the audio from the server to the client (in tokens, to allow user interruptions and make the audion streaming faster).
+
+third, an LLM Model.:
+(this is a simple one, it is gonna be an API too considering the weight of a local LLM)
+-openai api token subscription
+
+fourth, the Speech-To-Text, which is gonna be whisper, preferably a local one in the server.
+-a whisper model.
+-a server to host the model.
+-a way to stream audio to the server to process.
+
+and finally a RAG system, this is a way for me to practice and also to make it a useful feature of labeeb.
